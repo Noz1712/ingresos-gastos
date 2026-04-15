@@ -1,0 +1,53 @@
+<section class="page">
+  <header class="page-header single">
+    <div>
+      <p class="eyebrow">Dashboard</p>
+      <h1>Distribucion de gastos del mes</h1>
+      <p class="copy">Vista rapida por categoria en formato pastel.</p>
+    </div>
+  </header>
+
+  @if (dashboard$ | async; as dashboard) {
+    <div class="content-grid">
+      <article class="panel pie-panel">
+        <h2>Pastel de gastos</h2>
+
+        @if (dashboard.slices.length) {
+          <div class="pie-wrap">
+            <div class="pie-chart" [style.background]="dashboard.gradient" aria-label="Grafico de pastel de gastos"></div>
+            <div class="pie-center">
+              <strong>{{ dashboard.total | money: preferencesService.currencyCode() }}</strong>
+              <span>Total del mes</span>
+            </div>
+          </div>
+
+          <p class="meta">Movimientos incluidos: {{ dashboard.expenseCount }}</p>
+        } @else {
+          <p class="empty-state">Todavia no hay gastos registrados este mes.</p>
+        }
+      </article>
+
+      <article class="panel legend-panel">
+        <h2>Detalle por categoria</h2>
+
+        @if (dashboard.slices.length) {
+          <ul class="legend-list">
+            @for (slice of dashboard.slices; track slice.category) {
+              <li>
+                <span class="swatch" [style.background]="slice.color" aria-hidden="true"></span>
+                <div>
+                  <strong>{{ slice.category }}</strong>
+                  <span>{{ slice.amount | money: preferencesService.currencyCode() }} | {{ (slice.share * 100).toFixed(1) }}%</span>
+                </div>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="empty-state">Sin categorias para mostrar.</p>
+        }
+      </article>
+    </div>
+  } @else {
+    <p class="empty-state">Cargando dashboard...</p>
+  }
+</section>

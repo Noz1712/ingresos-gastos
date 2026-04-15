@@ -57,6 +57,8 @@ export class MovementsPageComponent {
   protected readonly eventSaving = signal(false);
   protected readonly eventErrorMessage = signal('');
   protected readonly obligationProcessingKey = signal('');
+  protected readonly selectedObligation = signal<PendingMovement | null>(null);
+  protected readonly obligationConfirmAmount = signal(0);
   protected readonly movementProcessingKey = signal('');
   protected readonly movementErrorMessage = signal('');
 
@@ -208,7 +210,34 @@ export class MovementsPageComponent {
     }
   }
 
-  protected async markObligationAsDone(obligation: PendingMovement): Promise<void> {
+  protected openObligationDialog(obligation: PendingMovement): void {
+    this.eventErrorMessage.set('');
+    this.selectedObligation.set(obligation);
+    this.obligationConfirmAmount.set(obligation.amount);
+  }
+
+  protected closeObligationDialog(): void {
+    this.selectedObligation.set(null);
+    this.obligationConfirmAmount.set(0);
+  }
+
+  protected setObligationConfirmAmount(rawValue: string): void {
+    const parsed = Number(rawValue);
+    this.obligationConfirmAmount.set(Number.isFinite(parsed) ? parsed : 0);
+  }
+
+  protected async confirmObligationRegistration(): Promise<void> {
+    const obligation = this.selectedObligation();
+    if (!obligation) {
+      return;
+    }
+
+    const amount = Number(this.obligationConfirmAmount() || 0);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      this.eventErrorMessage.set('El monto del pendiente debe ser mayor que cero.');
+      return;
+    }
+
     const user = await this.getCurrentUser();
     if (!user) {
       return;
@@ -222,7 +251,7 @@ export class MovementsPageComponent {
         await this.expenseService.addExpense(user.uid, {
           description: obligation.name,
           icon: obligation.icon,
-          amount: obligation.amount,
+          amount,
           category: obligation.category,
           spentAt: obligation.dueDate,
         });
@@ -234,11 +263,13 @@ export class MovementsPageComponent {
         await this.incomeService.addIncome(user.uid, {
           description: obligation.name,
           icon: obligation.icon,
-          amount: obligation.amount,
+          amount,
           category: obligation.category,
           receivedAt: obligation.dueDate,
         });
       }
+
+      this.closeObligationDialog();
     } finally {
       this.obligationProcessingKey.set('');
     }
@@ -325,8 +356,24 @@ export class MovementsPageComponent {
     }
 
     for (const item of expenseCatalogItems) {
-      if (item.type !== 'Recurrente') {
+      if (item.type === 'Eventual') {
         continue;
+      }
+
+      const debtMode =
+        item.type === 'Deuda'
+          ? item.debtPaymentMode ?? 'Recurrente'
+          : null;
+
+      if (item.type === 'Deuda' && debtMode === 'PagoUnico') {
+        if (!item.endDate) {
+          continue;
+        }
+
+        const singleDate = new Date(`${item.endDate}T00:00:00`);
+        if (singleDate.getFullYear() !== year || singleDate.getMonth() !== month) {
+          continue;
+        }
       }
 
       if (!item.isIndefinite && item.endDate) {
@@ -343,6 +390,18 @@ export class MovementsPageComponent {
         }
 
         const dueDate = new Date(year, month, day);
+
+        if (item.type === 'Deuda' && debtMode === 'PagoUnico' && item.endDate) {
+          const singleDate = new Date(`${item.endDate}T00:00:00`);
+          if (
+            dueDate.getFullYear() !== singleDate.getFullYear() ||
+            dueDate.getMonth() !== singleDate.getMonth() ||
+            dueDate.getDate() !== singleDate.getDate()
+          ) {
+            continue;
+          }
+        }
+
         const dueDateKey = this.toDateKey(dueDate);
         const dueDateIso = dueDate.toISOString().slice(0, 10);
         const alreadyRegistered = expenses.some(

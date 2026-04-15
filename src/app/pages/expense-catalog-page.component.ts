@@ -1,4 +1,4 @@
-﻿import { AsyncPipe } from '@angular/common';
+﻿import { AsyncPipe, DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { EMPTY, firstValueFrom, map, Observable, switchMap } from 'rxjs';
@@ -6,7 +6,6 @@ import { CATEGORY_ICON_PRESETS } from '../models/category-icon-presets.model';
 import { DEFAULT_EXPENSE_CATEGORIES } from '../models/expense.model';
 import { CatalogScheduleEntry } from '../models/expense-catalog.model';
 import {
-  DebtPaymentMode,
   EXPENSE_CATALOG_CATEGORIES,
   ExpenseCatalogItem,
   ExpenseCatalogType,
@@ -19,7 +18,7 @@ import { UserPreferencesService } from '../services/user-preferences.service';
 
 @Component({
   selector: 'app-expense-catalog-page',
-  imports: [AsyncPipe, ReactiveFormsModule, MoneyPipe],
+  imports: [AsyncPipe, DatePipe, ReactiveFormsModule, MoneyPipe],
   templateUrl: './expense-catalog-page.component.html',
   styleUrl: './expense-catalog-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -34,7 +33,6 @@ export class ExpenseCatalogPageComponent {
   protected readonly types = EXPENSE_CATALOG_CATEGORIES;
   protected readonly fallbackCategories = DEFAULT_EXPENSE_CATEGORIES;
   protected readonly iconPresets = CATEGORY_ICON_PRESETS;
-  protected readonly debtPaymentModes: DebtPaymentMode[] = ['Recurrente', 'PagoUnico'];
   protected readonly dayOptions = Array.from({ length: 31 }, (_, index) => index + 1);
   protected readonly saving = signal(false);
   protected readonly errorMessage = signal('');
@@ -57,9 +55,6 @@ export class ExpenseCatalogPageComponent {
     color: ['#76b4ff', [Validators.required]],
     icon: ['🧾', [Validators.required, Validators.maxLength(4)]],
     initialDebt: [0, [Validators.min(0)]],
-    debtPaymentMode: ['Recurrente' as DebtPaymentMode, [Validators.required]],
-    singlePaymentDate: ['', []],
-    singlePaymentAmount: [0, [Validators.min(0)]],
     isIndefinite: [true, [Validators.required]],
     endDate: ['', []],
   });
@@ -112,12 +107,58 @@ export class ExpenseCatalogPageComponent {
   protected readonly totalLabel = computed(() => this.catalogForm.controls.name.value.trim().length);
   protected readonly canConfigureDates = computed(() => {
     const type = this.selectedType();
-    return type === 'Recurrente' || (type === 'Deuda' && this.selectedDebtPaymentMode() === 'Recurrente');
+    return type === 'Recurrente' || type === 'Deuda';
   });
-  protected readonly selectedDebtPaymentMode = computed(() => this.normalizeDebtPaymentMode(this.catalogForm.controls.debtPaymentMode.value));
-  protected readonly isDebtSinglePayment = computed(
-    () => this.selectedType() === 'Deuda' && this.selectedDebtPaymentMode() === 'PagoUnico',
-  );
+  protected readonly debtCompletionDate = computed(() => {
+    if (this.selectedType() !== 'Deuda') {
+      return '';
+    }
+
+    const totalDebt = Number(this.catalogForm.controls.initialDebt.value || 0);
+    if (!Number.isFinite(totalDebt) || totalDebt <= 0) {
+      return '';
+    }
+
+    const schedules = this.scheduleItems();
+    if (!schedules.length) {
+      return '';
+    }
+
+    const today = new Date();
+    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    let remaining = totalDebt;
+    let currentYear = start.getFullYear();
+    let currentMonth = start.getMonth();
+
+    const uniqueSchedules = [...schedules]
+      .filter((entry) => Number.isInteger(entry.day) && entry.day >= 1 && entry.day <= 31)
+      .sort((left, right) => left.day - right.day);
+
+    for (let cycle = 0; cycle < 600; cycle += 1) {
+      for (const schedule of uniqueSchedules) {
+        const monthLastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
+        const dueDay = Math.min(schedule.day, monthLastDay);
+        const dueDate = new Date(currentYear, currentMonth, dueDay);
+
+        if (dueDate < start) {
+          continue;
+        }
+
+        remaining -= Number(schedule.amount || 0);
+        if (remaining <= 0) {
+          return dueDate.toISOString().slice(0, 10);
+        }
+      }
+
+      currentMonth += 1;
+      if (currentMonth > 11) {
+        currentMonth = 0;
+        currentYear += 1;
+      }
+    }
+
+    return '';
+  });
 
   protected async saveCatalogItem(): Promise<void> {
     const user = await this.getCurrentUser();
@@ -131,23 +172,11 @@ export class ExpenseCatalogPageComponent {
 
     try {
       const form = this.catalogForm.getRawValue();
-      const debtMode = this.normalizeDebtPaymentMode(form.debtPaymentMode);
-      let schedules = this.scheduleItems();
-
-      if (form.type === 'Deuda' && debtMode === 'PagoUnico') {
-        const singleDate = form.singlePaymentDate;
-        const singleAmount = Number(form.singlePaymentAmount || 0);
-        if (!singleDate || !Number.isFinite(singleAmount) || singleAmount <= 0) {
-          this.errorMessage.set('Para Deuda de pago unico debes definir fecha y monto.');
-          return;
-        }
-
-        const day = new Date(`${singleDate}T00:00:00`).getDate();
-        schedules = [{ day, amount: singleAmount }];
-      }
+      const schedules = this.scheduleItems();
+      const completionDate = this.debtCompletionDate();
 
       if ((form.type === 'Recurrente' || form.type === 'Deuda') && !schedules.length) {
-        this.errorMessage.set('Agrega al menos una fecha de pago recurrente.');
+        this.errorMessage.set('Agrega al menos una fecha de pago.');
         return;
       }
 
@@ -156,8 +185,13 @@ export class ExpenseCatalogPageComponent {
         return;
       }
 
-      if (!form.isIndefinite && !form.endDate && !(form.type === 'Deuda' && debtMode === 'PagoUnico')) {
+      if (!form.isIndefinite && !form.endDate && form.type !== 'Deuda') {
         this.errorMessage.set('Define fecha de fin o marca indefinido.');
+        return;
+      }
+
+      if (form.type === 'Deuda' && !completionDate) {
+        this.errorMessage.set('No fue posible calcular la fecha de finalizacion. Revisa monto y fechas.');
         return;
       }
 
@@ -168,14 +202,9 @@ export class ExpenseCatalogPageComponent {
         color: form.color,
         icon: form.icon,
         initialDebt: form.type === 'Deuda' ? Number(form.initialDebt || 0) : null,
-        debtPaymentMode: form.type === 'Deuda' ? debtMode : null,
+        debtPaymentMode: form.type === 'Deuda' ? ('Recurrente' as const) : null,
         paymentSchedules: schedules,
-        endDate:
-          form.type === 'Deuda' && debtMode === 'PagoUnico'
-            ? form.singlePaymentDate
-            : form.isIndefinite
-              ? null
-              : form.endDate,
+        endDate: form.type === 'Deuda' ? completionDate : form.isIndefinite ? null : form.endDate,
         isIndefinite: form.type === 'Deuda' ? false : form.isIndefinite,
       };
 
@@ -208,15 +237,6 @@ export class ExpenseCatalogPageComponent {
       color: item.color,
       icon: item.icon,
       initialDebt: Number(item.initialDebt || 0),
-      debtPaymentMode:
-        item.type === 'Deuda'
-          ? item.debtPaymentMode ?? ((item.paymentSchedules?.length || 0) > 1 ? 'Recurrente' : 'PagoUnico')
-          : 'Recurrente',
-      singlePaymentDate: item.type === 'Deuda' && item.endDate ? item.endDate : '',
-      singlePaymentAmount:
-        item.type === 'Deuda' && (item.debtPaymentMode ?? ((item.paymentSchedules?.length || 0) > 1 ? 'Recurrente' : 'PagoUnico')) === 'PagoUnico'
-          ? Number(item.paymentSchedules?.[0]?.amount || 0)
-          : 0,
       isIndefinite: item.type === 'Deuda' ? false : item.isIndefinite,
       endDate: item.endDate ?? '',
     });
@@ -267,9 +287,6 @@ export class ExpenseCatalogPageComponent {
       color: '#76b4ff',
       icon: '🧾',
       initialDebt: 0,
-      debtPaymentMode: 'Recurrente',
-      singlePaymentDate: '',
-      singlePaymentAmount: 0,
       isIndefinite: true,
       endDate: '',
     });
@@ -328,7 +345,7 @@ export class ExpenseCatalogPageComponent {
     const rows = [...this.scheduleItems()];
     const idx = rows.findIndex((row) => row.day === day);
 
-    if (type !== 'Recurrente' && rows.length >= 1 && idx < 0) {
+    if (type === 'Eventual' && rows.length >= 1 && idx < 0) {
       const previousIdx = editingDay !== null ? rows.findIndex((row) => row.day === editingDay) : 0;
       const replaceIdx = previousIdx >= 0 ? previousIdx : 0;
       rows[replaceIdx] = { day, amount };
@@ -355,7 +372,6 @@ export class ExpenseCatalogPageComponent {
   protected onTypeChange(): void {
     const type = this.normalizeType(this.catalogForm.controls.type.value);
     this.selectedType.set(type);
-    const debtMode = this.normalizeDebtPaymentMode(this.catalogForm.controls.debtPaymentMode.value);
 
     if (this.catalogForm.controls.type.value !== type) {
       this.catalogForm.patchValue({ type });
@@ -365,9 +381,6 @@ export class ExpenseCatalogPageComponent {
       this.scheduleItems.set([]);
       this.catalogForm.patchValue({
         initialDebt: 0,
-        debtPaymentMode: 'Recurrente',
-        singlePaymentDate: '',
-        singlePaymentAmount: 0,
         isIndefinite: true,
         endDate: '',
       });
@@ -375,14 +388,9 @@ export class ExpenseCatalogPageComponent {
 
     if (type === 'Deuda') {
       this.catalogForm.patchValue({ isIndefinite: false });
-      if (debtMode === 'PagoUnico') {
-        this.scheduleItems.set([]);
-        this.scheduleModalOpen.set(false);
-        this.editingScheduleDay.set(null);
-      }
     }
 
-    if (type !== 'Recurrente' && this.scheduleItems().length > 1) {
+    if (type === 'Eventual' && this.scheduleItems().length > 1) {
       this.scheduleItems.set([this.scheduleItems()[0]]);
     }
 
@@ -402,13 +410,5 @@ export class ExpenseCatalogPageComponent {
     }
 
     return 'Eventual';
-  }
-
-  private normalizeDebtPaymentMode(value: unknown): DebtPaymentMode {
-    if (value === 'Recurrente' || value === 'PagoUnico') {
-      return value;
-    }
-
-    return 'Recurrente';
   }
 }

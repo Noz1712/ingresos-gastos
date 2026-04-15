@@ -1,0 +1,105 @@
+@use './shared-page';
+
+.single {
+  margin-bottom: 1.4rem;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: minmax(20rem, 28rem) 1fr;
+  gap: 1.2rem;
+}
+
+.pie-panel,
+.legend-panel {
+  display: grid;
+  gap: 0.95rem;
+}
+
+.pie-wrap {
+  position: relative;
+  width: min(19rem, 100%);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  display: grid;
+  place-items: center;
+}
+
+.pie-chart {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(120, 160, 206, 0.25), 0 14px 28px rgba(120, 160, 206, 0.2);
+}
+
+.pie-center {
+  position: absolute;
+  width: 58%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(145, 184, 228, 0.42);
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 0.8rem;
+}
+
+.pie-center strong {
+  color: var(--primary-strong);
+}
+
+.pie-center span {
+  color: var(--muted-text);
+  font-size: 0.83rem;
+}
+
+.meta {
+  margin: 0;
+  color: var(--muted-text);
+  text-align: center;
+}
+
+.legend-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.legend-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid rgba(183, 211, 240, 0.62);
+  border-radius: 0.95rem;
+  padding: 0.7rem 0.8rem;
+  background: #f8fcff;
+}
+
+.legend-list li div {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.legend-list span {
+  color: var(--muted-text);
+}
+
+.swatch {
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 900px) {
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pie-wrap {
+    width: min(16.5rem, 100%);
+  }
+}

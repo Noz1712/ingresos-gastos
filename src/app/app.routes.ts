@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { authGuard } from './guards/auth.guard';
 import { guestGuard } from './guards/guest.guard';
 import { AppShellComponent } from './layouts/app-shell.component';
+import { DashboardPageComponent } from './pages/dashboard-page.component';
 import { ExpenseCatalogPageComponent } from './pages/expense-catalog-page.component';
 import { ExpenseCategoriesPageComponent } from './pages/expense-categories-page.component';
 import { IncomeCatalogPageComponent } from './pages/income-catalog-page.component';
@@ -28,8 +29,7 @@ export const routes: Routes = [
       },
       {
         path: 'dashboard',
-        redirectTo: 'movimientos',
-        pathMatch: 'full',
+        component: DashboardPageComponent,
       },
       {
         path: 'movimientos',

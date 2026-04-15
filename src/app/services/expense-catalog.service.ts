@@ -66,7 +66,7 @@ export class ExpenseCatalogService {
                 initialDebt: typeof item.initialDebt === 'number' ? item.initialDebt : null,
                 debtPaymentMode:
                   item.type === 'Deuda'
-                    ? item.debtPaymentMode ?? (this.normalizeSchedules(item.paymentSchedules).length > 1 ? 'Recurrente' : 'PagoUnico')
+                    ? item.debtPaymentMode ?? 'Recurrente'
                     : null,
                 paymentSchedules: this.normalizeSchedules(item.paymentSchedules),
                 endDate: item.endDate ?? null,

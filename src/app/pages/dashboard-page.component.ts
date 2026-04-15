@@ -1,0 +1,101 @@
+import { AsyncPipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { EMPTY, map, Observable, switchMap } from 'rxjs';
+import { MoneyPipe } from '../pipes/money.pipe';
+import { AuthService } from '../services/auth.service';
+import { ExpenseService } from '../services/expense.service';
+import { UserPreferencesService } from '../services/user-preferences.service';
+
+type ExpenseSlice = {
+  category: string;
+  amount: number;
+  share: number;
+  color: string;
+};
+
+type DashboardState = {
+  total: number;
+  expenseCount: number;
+  slices: ExpenseSlice[];
+  gradient: string;
+};
+
+@Component({
+  selector: 'app-dashboard-page',
+  imports: [AsyncPipe, MoneyPipe],
+  templateUrl: './dashboard-page.component.html',
+  styleUrl: './dashboard-page.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class DashboardPageComponent {
+  private readonly authService = inject(AuthService);
+  private readonly expenseService = inject(ExpenseService);
+  protected readonly preferencesService = inject(UserPreferencesService);
+
+  protected readonly dashboard$ = this.authService.user$.pipe(
+    switchMap((user): Observable<DashboardState> => {
+      if (!user) {
+        return EMPTY;
+      }
+
+      return this.expenseService.expensesForUser(user.uid).pipe(map((expenses) => this.buildDashboardState(expenses)));
+    }),
+  );
+
+  private buildDashboardState(expenses: Array<{ amount: number; category: string; spentAt: string }>): DashboardState {
+    const now = new Date();
+    const monthlyExpenses = expenses.filter((expense) => {
+      const spentDate = new Date(`${expense.spentAt}T00:00:00`);
+      return spentDate.getFullYear() === now.getFullYear() && spentDate.getMonth() === now.getMonth();
+    });
+
+    const total = monthlyExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+    const totalsByCategory = new Map<string, number>();
+
+    for (const expense of monthlyExpenses) {
+      const key = expense.category || 'Sin categoria';
+      totalsByCategory.set(key, (totalsByCategory.get(key) ?? 0) + Number(expense.amount || 0));
+    }
+
+    const palette = ['#78aef6', '#78d7c5', '#ffd37e', '#f79cb4', '#b9a0ff', '#8fd3ff', '#f1a975', '#9ad06f'];
+    const slices = Array.from(totalsByCategory.entries())
+      .map(([category, amount], index) => ({
+        category,
+        amount,
+        share: total > 0 ? amount / total : 0,
+        color: palette[index % palette.length],
+      }))
+      .sort((left, right) => right.amount - left.amount);
+
+    const gradient = this.buildGradient(slices);
+
+    return {
+      total,
+      expenseCount: monthlyExpenses.length,
+      slices,
+      gradient,
+    };
+  }
+
+  private buildGradient(slices: ExpenseSlice[]): string {
+    if (!slices.length) {
+      return 'conic-gradient(#dcecff 0% 100%)';
+    }
+
+    let cursor = 0;
+    const chunks: string[] = [];
+
+    for (const slice of slices) {
+      const start = cursor;
+      cursor += slice.share * 100;
+      const end = Math.min(100, cursor);
+      chunks.push(`${slice.color} ${start.toFixed(2)}% ${end.toFixed(2)}%`);
+    }
+
+    if (cursor < 100 && slices.length) {
+      chunks.push(`${slices[0].color} ${cursor.toFixed(2)}% 100%`);
+    }
+
+    return `conic-gradient(${chunks.join(', ')})`;
+  }
+}

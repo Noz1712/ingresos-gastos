@@ -41,6 +41,37 @@
   color: #9f3c56;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(27, 43, 61, 0.45);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  z-index: 60;
+}
+
+.modal-card {
+  width: min(24rem, 100%);
+  border-radius: 1rem;
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid #d7e9fb;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.modal-card h3 {
+  margin: 0;
+  color: var(--primary-strong);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
 .compact-panel {
   padding: 1rem 1.1rem;
 }
