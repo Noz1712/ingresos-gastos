@@ -1,0 +1,89 @@
+<section class="dashboard">
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Ingresos y Gastos</p>
+      <h1>Panel personal de gastos</h1>
+      <p class="copy">
+        Cada usuario trabaja sobre su propia coleccion en Firestore. La base esta lista para
+        extenderse a presupuestos compartidos.
+      </p>
+    </div>
+
+    <button type="button" class="secondary-button" (click)="logout()">Cerrar sesion</button>
+  </header>
+
+  <div class="grid">
+    <article class="panel form-panel">
+      <h2>Nuevo gasto</h2>
+      <form [formGroup]="expenseForm" (ngSubmit)="addExpense()">
+        <label>
+          <span>Descripcion</span>
+          <input type="text" formControlName="description" placeholder="Ej. Supermercado semanal" />
+        </label>
+
+        <label>
+          <span>Monto</span>
+          <input type="number" min="0.01" step="0.01" formControlName="amount" />
+          <small>Total actual: {{ totalLabel() }}</small>
+        </label>
+
+        <label>
+          <span>Categoria</span>
+          <select formControlName="category">
+            @for (category of categories; track category) {
+              <option [value]="category">{{ category }}</option>
+            }
+          </select>
+        </label>
+
+        <label>
+          <span>Fecha</span>
+          <input type="date" formControlName="spentAt" />
+        </label>
+
+        <button type="submit" class="primary-button" [disabled]="saving()">
+          {{ saving() ? 'Guardando...' : 'Guardar gasto' }}
+        </button>
+      </form>
+
+      @if (errorMessage()) {
+        <p class="error">{{ errorMessage() }}</p>
+      }
+    </article>
+
+    <article class="panel list-panel">
+      <h2>Historial</h2>
+
+      @if (expenses$ | async; as expenses) {
+        @if (expenses.length) {
+          <ul class="expense-list">
+            @for (expense of expenses; track expense.id) {
+              <li>
+                <div>
+                  <strong>{{ expense.description }}</strong>
+                  <span>{{ expense.category }} · {{ expense.spentAt | date: 'mediumDate' }}</span>
+                </div>
+
+                <div class="expense-actions">
+                  <strong>{{ expense.amount | currency: 'GTQ' : 'symbol' : '1.2-2' }}</strong>
+                  <button
+                    type="button"
+                    class="danger-button"
+                    [disabled]="removingId() === expense.id"
+                    (click)="removeExpense(expense.id)"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="empty-state">Todavia no hay gastos registrados para este usuario.</p>
+        }
+      } @else {
+        <p class="empty-state">Cargando gastos...</p>
+      }
+    </article>
+  </div>
+</section>

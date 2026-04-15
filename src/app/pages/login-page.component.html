@@ -1,0 +1,23 @@
+<section class="login-page">
+  <div class="login-card">
+    <p class="eyebrow">PWA Angular + Firebase</p>
+    <h1>Controla tus gastos desde cualquier dispositivo.</h1>
+    <p class="copy">
+      Autenticacion por usuario, datos en Firestore y una base preparada para ampliar a equipos o
+      roles.
+    </p>
+
+    <button type="button" class="primary-button" (click)="signIn()" [disabled]="loading()">
+      {{ loading() ? 'Conectando...' : 'Entrar con Google' }}
+    </button>
+
+    @if (errorMessage()) {
+      <p class="error">{{ errorMessage() }}</p>
+    }
+
+    <div class="notes">
+      <p>Configura tus credenciales Firebase en <code>src/environments/environment.ts</code>.</p>
+      <a routerLink="/">Ir al dashboard</a>
+    </div>
+  </div>
+</section>
