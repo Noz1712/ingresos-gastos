@@ -103,7 +103,6 @@ export class ExpenseCatalogPageComponent {
     }),
   );
 
-  protected readonly totalLabel = computed(() => this.catalogForm.controls.name.value.trim().length);
   protected readonly canConfigureDates = computed(() => {
     const type = this.selectedType();
     return type === 'Recurrente' || type === 'Deuda';
@@ -114,27 +113,13 @@ export class ExpenseCatalogPageComponent {
     }
 
     const totalDebt = Number(this.catalogForm.controls.initialDebt.value || 0);
-    if (!Number.isFinite(totalDebt) || totalDebt <= 0) {
-      return null;
-    }
-
-    const schedules = this.scheduleItems();
-    if (!schedules.length) {
-      return null;
-    }
-
-    const monthlyTotal = schedules.reduce((sum, row) => sum + Number(row.amount || 0), 0);
-    if (!Number.isFinite(monthlyTotal) || monthlyTotal <= 0) {
-      return null;
-    }
-
-    const projection = this.projectDebtPlan(totalDebt, schedules);
+    const projection = this.projectDebtPlan(totalDebt, this.scheduleItems());
     if (!projection) {
       return null;
     }
 
     return {
-      monthlyTotal,
+      monthlyTotal: projection.monthlyTotal,
       estimatedInstallments: projection.paymentCount,
       estimatedMonths: projection.monthCount,
       completionDate: projection.completionDate,
@@ -146,9 +131,7 @@ export class ExpenseCatalogPageComponent {
       return '';
     }
 
-    const totalDebt = Number(this.catalogForm.controls.initialDebt.value || 0);
-    const projection = this.projectDebtPlan(totalDebt, this.scheduleItems());
-    return projection?.completionDate ?? '';
+    return this.debtProjection()?.completionDate ?? '';
   });
 
   protected async saveCatalogItem(): Promise<void> {
@@ -419,6 +402,7 @@ export class ExpenseCatalogPageComponent {
   }
 
   private projectDebtPlan(totalDebt: number, schedules: CatalogScheduleEntry[]): {
+    monthlyTotal: number;
     completionDate: string;
     paymentCount: number;
     monthCount: number;
@@ -467,6 +451,7 @@ export class ExpenseCatalogPageComponent {
 
         if (remaining <= 0) {
           return {
+            monthlyTotal,
             completionDate: dueDate.toISOString().slice(0, 10),
             paymentCount,
             monthCount: months.size,

@@ -320,6 +320,8 @@ export class MovementsPageComponent {
     const month = now.getMonth();
     const today = new Date(year, month, now.getDate());
     const monthLastDay = new Date(year, month + 1, 0).getDate();
+    const expenseRegistry = new Set(expenses.map((expense) => `${expense.description}|${expense.spentAt}`));
+    const incomeRegistry = new Set(incomes.map((income) => `${income.description}|${income.receivedAt}`));
 
     const obligations: PendingMovement[] = [];
 
@@ -403,9 +405,7 @@ export class MovementsPageComponent {
 
         const dueDateKey = this.toDateKey(dueDate);
         const dueDateIso = dueDate.toISOString().slice(0, 10);
-        const alreadyRegistered = expenses.some(
-          (expense) => expense.description === item.name && expense.spentAt === dueDateIso,
-        );
+        const alreadyRegistered = expenseRegistry.has(`${item.name}|${dueDateIso}`);
 
         if (alreadyRegistered) {
           continue;
@@ -446,9 +446,7 @@ export class MovementsPageComponent {
         const dueDate = new Date(year, month, day);
         const dueDateKey = this.toDateKey(dueDate);
         const dueDateIso = dueDate.toISOString().slice(0, 10);
-        const alreadyRegistered = incomes.some(
-          (income) => income.description === item.name && income.receivedAt === dueDateIso,
-        );
+        const alreadyRegistered = incomeRegistry.has(`${item.name}|${dueDateIso}`);
 
         if (alreadyRegistered) {
           continue;

@@ -46,4 +46,11 @@
     </button>
     <router-outlet />
   </main>
+
+  <nav class="mobile-tabbar" aria-label="Navegacion principal movil">
+    <a routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Dashboard</a>
+    <a routerLink="/movimientos" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Movimientos</a>
+    <a routerLink="/perfil" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Perfil</a>
+    <button type="button" class="tabbar-menu-button" (click)="toggleMobileSidebar()">Menu</button>
+  </nav>
 </div>

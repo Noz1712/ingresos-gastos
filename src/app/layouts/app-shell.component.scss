@@ -17,6 +17,11 @@
   display: grid;
   grid-template-rows: auto auto 1fr auto;
   gap: 1.5rem;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  align-self: start;
+  overflow-y: auto;
   padding: 2rem 1.25rem;
   background: rgba(255, 255, 255, 0.62);
   border-right: 1px solid rgba(143, 183, 229, 0.34);
@@ -133,6 +138,7 @@
 
 .content {
   padding: 2rem;
+  padding-bottom: 1.5rem;
 }
 
 .mobile-menu-button {
@@ -150,6 +156,21 @@
 
 .sidebar-overlay {
   display: none;
+}
+
+.mobile-tabbar {
+  display: none;
+}
+
+.tabbar-menu-button {
+  border: 0;
+  background: transparent;
+  color: #4a6f96;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 0.8rem;
+  padding: 0.45rem 0.35rem;
 }
 
 @media (max-width: 960px) {
@@ -186,10 +207,51 @@
   }
 
   .mobile-menu-button {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    margin-bottom: 0.8rem;
   }
 
   .content {
     padding: 1rem;
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
+
+  .mobile-tabbar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 45;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.55rem 0.6rem calc(0.55rem + env(safe-area-inset-bottom));
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(143, 183, 229, 0.34);
+  }
+
+  .mobile-tabbar a,
+  .mobile-tabbar button {
+    text-align: center;
+    text-decoration: none;
+    color: #4a6f96;
+    font-weight: 700;
+    font-size: 0.8rem;
+    padding: 0.5rem 0.3rem;
+    border-radius: 0.8rem;
+    min-height: 2.5rem;
+    display: grid;
+    place-items: center;
+  }
+
+  .mobile-tabbar a.active,
+  .mobile-tabbar a:hover,
+  .mobile-tabbar button:hover {
+    background: linear-gradient(135deg, rgba(161, 203, 255, 0.72), rgba(222, 240, 255, 0.96));
+    color: #215382;
   }
 }

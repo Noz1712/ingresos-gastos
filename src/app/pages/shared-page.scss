@@ -105,6 +105,7 @@ select {
   border: 1px solid #cfe2f6;
   border-radius: 1rem;
   padding: 0.9rem 1rem;
+  min-height: 2.85rem;
   background: #fbfdff;
   color: var(--text-color);
   transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
@@ -123,6 +124,7 @@ select:focus {
   border: 0;
   border-radius: 999px;
   padding: 0.95rem 1.2rem;
+  min-height: 2.75rem;
   font-weight: 700;
   cursor: pointer;
   transition: transform 130ms ease, box-shadow 130ms ease, filter 130ms ease;
@@ -199,14 +201,33 @@ select:focus {
 }
 
 @media (max-width: 900px) {
+  .page {
+    padding-bottom: 0.2rem;
+  }
+
   .page-header,
   .record-list li {
     flex-direction: column;
     align-items: stretch;
   }
 
+  .page-header {
+    gap: 0.9rem;
+    margin-bottom: 1rem;
+  }
+
   .content-grid {
     grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .panel {
+    padding: 1rem;
+    border-radius: 1.2rem;
+  }
+
+  form {
+    gap: 0.85rem;
   }
 
   .record-actions {
