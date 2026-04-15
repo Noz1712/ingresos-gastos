@@ -406,17 +406,17 @@ export class MovementsPageComponent {
   private expandPendingForCurrentMonth(
     pendingExpenses: PendingExpense[],
     expenseCatalogItems: ExpenseCatalogItem[],
-    expenses: Array<{ description: string; spentAt: string }>,
+    expenses: Array<{ description: string; spentAt: string; category: string }>,
     incomeCatalogItems: IncomeCatalogItem[],
-    incomes: Array<{ description: string; receivedAt: string }>,
+    incomes: Array<{ description: string; receivedAt: string; category: string }>,
   ): PendingMovement[] {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth();
     const today = new Date(year, month, now.getDate());
     const monthLastDay = new Date(year, month + 1, 0).getDate();
-    const expenseRegistry = new Set(expenses.map((expense) => `${expense.description}|${expense.spentAt}`));
-    const incomeRegistry = new Set(incomes.map((income) => `${income.description}|${income.receivedAt}`));
+    const expenseRegistry = new Set(expenses.map((expense) => `${expense.description}|${expense.spentAt}|${expense.category}`));
+    const incomeRegistry = new Set(incomes.map((income) => `${income.description}|${income.receivedAt}|${income.category}`));
 
     const obligations: PendingMovement[] = [];
 
@@ -500,7 +500,7 @@ export class MovementsPageComponent {
 
         const dueDateKey = toIsoDateKey(dueDate);
         const dueDateIso = dueDate.toISOString().slice(0, 10);
-        const alreadyRegistered = expenseRegistry.has(`${item.name}|${dueDateIso}`);
+        const alreadyRegistered = expenseRegistry.has(`${item.name}|${dueDateIso}|${item.category}`);
 
         if (alreadyRegistered) {
           continue;
@@ -541,7 +541,7 @@ export class MovementsPageComponent {
         const dueDate = new Date(year, month, day);
         const dueDateKey = toIsoDateKey(dueDate);
         const dueDateIso = dueDate.toISOString().slice(0, 10);
-        const alreadyRegistered = incomeRegistry.has(`${item.name}|${dueDateIso}`);
+        const alreadyRegistered = incomeRegistry.has(`${item.name}|${dueDateIso}|${item.category}`);
 
         if (alreadyRegistered) {
           continue;
@@ -563,7 +563,7 @@ export class MovementsPageComponent {
 
     const unique = new Map<string, PendingMovement>();
     for (const obligation of obligations) {
-      const key = `${obligation.kind}|${obligation.name}|${obligation.dueDate}|${obligation.amount}`;
+      const key = `${obligation.kind}|${obligation.category}|${obligation.name}|${obligation.dueDate}|${obligation.amount}`;
       if (!unique.has(key)) {
         unique.set(key, obligation);
       }

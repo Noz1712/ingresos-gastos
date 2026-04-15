@@ -77,12 +77,12 @@
         @if (obligations.length) {
           <ul class="record-list">
             @for (obligation of obligations; track obligation.kind + obligation.sourceId + obligation.dueDateKey) {
-              <li>
+              <li class="compact-record-item">
                 <div class="record-main">
                   <span class="record-icon">{{ obligation.icon }}</span>
-                  <div>
-                    <strong>{{ obligation.name }}</strong>
-                    <span>
+                  <div class="movement-lines">
+                    <strong class="movement-title">{{ obligation.name }}</strong>
+                    <span class="movement-meta">
                       {{ obligation.category }} | {{ obligation.dueDate | date: 'dd/MM/yyyy' }}
                       | {{ obligation.kind === 'income' ? 'Ingreso' : 'Gasto' }}
                       @if (obligation.isOverdue) {
@@ -92,7 +92,9 @@
                   </div>
                 </div>
                 <div class="record-actions">
-                  <strong>{{ obligation.amount | money: preferencesService.currencyCode() }}</strong>
+                  <strong [class.income-amount]="obligation.kind === 'income'" [class.expense-amount]="obligation.kind === 'expense'">
+                    {{ obligation.amount | money: preferencesService.currencyCode() }}
+                  </strong>
                   <button
                     type="button"
                     class="ghost-button"
@@ -190,9 +192,6 @@
                 <strong [class.income-amount]="movement.kind === 'income'" [class.expense-amount]="movement.kind === 'expense'">
                   {{ movement.amount | money: preferencesService.currencyCode() }}
                 </strong>
-                <span class="badge" [class.income-badge]="movement.kind === 'income'" [class.expense-badge]="movement.kind === 'expense'">
-                  {{ movement.kind === 'income' ? 'Ingreso' : 'Gasto' }}
-                </span>
                 <button
                   type="button"
                   class="ghost-button danger-ghost"

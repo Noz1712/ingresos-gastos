@@ -7,9 +7,9 @@
 .date-filters {
   margin-top: 1rem;
   display: grid;
-  grid-template-columns: repeat(3, minmax(10rem, 1fr));
+  grid-template-columns: repeat(4, minmax(10rem, 1fr));
   gap: 0.7rem;
-  max-width: 48rem;
+  max-width: 64rem;
 }
 
 .date-filters label {
@@ -160,23 +160,245 @@
   color: var(--muted-text);
 }
 
-.sub-list {
+.compact-record-item {
+  padding: 0.7rem 0.75rem;
+  gap: 0.7rem;
+}
+
+.compact-record-item .record-main {
+  gap: 0.55rem;
+}
+
+.compact-record-item .record-icon {
+  width: 1.8rem;
+  height: 1.8rem;
+  font-size: 1rem;
+}
+
+.movement-lines {
+  display: grid;
+}
+
+.compact-record-item .record-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.compact-record-item .record-actions strong {
+  white-space: nowrap;
+}
+
+.badge {
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: #eff6ff;
+}
+
+.income-badge {
+  color: #2f7f59;
+  background: #e8f6ee;
+}
+
+.expense-badge {
+  color: #a24a68;
+  background: #fbeef2;
+}
+
+.budget-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.budget-summary {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.budget-summary p {
   margin: 0;
-  padding: 0;
-  list-style: none;
+  color: var(--muted-text);
+}
+
+.budget-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.65rem;
+}
+
+.budget-kpi {
+  border: 1px solid rgba(183, 211, 240, 0.62);
+  border-radius: 0.9rem;
+  background: #f8fcff;
+  padding: 0.6rem 0.7rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.budget-kpi span,
+.budget-kpi small {
+  color: var(--muted-text);
+}
+
+.budget-progress-wrap {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.budget-progress-wrap p {
+  margin: 0;
+  color: var(--muted-text);
+}
+
+.budget-progress-track {
+  height: 0.6rem;
+  border-radius: 999px;
+  background: #e8f3ff;
+  overflow: hidden;
+}
+
+.budget-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.expense-fill {
+  background: linear-gradient(90deg, #f5a8bc, #d66d8c);
+}
+
+.income-fill {
+  background: linear-gradient(90deg, #9ed7bc, #57b07f);
+}
+
+.budget-charts-panel {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.budget-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(14rem, 1fr));
+  gap: 0.8rem;
+}
+
+.mini-chart {
+  border: 1px solid rgba(183, 211, 240, 0.62);
+  border-radius: 0.95rem;
+  background: #f8fcff;
+  padding: 0.75rem;
   display: grid;
   gap: 0.65rem;
 }
 
-.sub-list li {
+.mini-chart h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--primary-strong);
+}
+
+.full-width {
+  grid-column: 1 / -1;
+}
+
+.bar-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.bar-list li {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.bar-label-line {
   display: flex;
   justify-content: space-between;
-  gap: 0.75rem;
   align-items: center;
-  border: 1px solid rgba(183, 211, 240, 0.62);
-  border-radius: 0.95rem;
-  padding: 0.65rem 0.8rem;
-  background: #f8fcff;
+  gap: 0.65rem;
+}
+
+.bar-label-line span {
+  color: var(--muted-text);
+}
+
+.bar-track {
+  height: 0.45rem;
+  border-radius: 999px;
+  background: #e8f3ff;
+  overflow: hidden;
+}
+
+.bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.timeline-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.timeline-list li {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.timeline-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.timeline-head span {
+  color: var(--muted-text);
+}
+
+.timeline-bars {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.2rem;
+}
+
+.timeline-income,
+.timeline-expense {
+  display: block;
+  height: 0.34rem;
+  border-radius: 999px;
+}
+
+.timeline-income {
+  background: #57b07f;
+}
+
+.timeline-expense {
+  background: #d66d8c;
+}
+
+.budget-list-panel {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.positive-balance,
+.income-amount {
+  color: #2f7f59;
+}
+
+.negative-balance,
+.expense-amount {
+  color: #a24a68;
 }
 
 @media (max-width: 900px) {
@@ -197,8 +419,13 @@
     max-width: 100%;
   }
 
-  .sub-list li {
-    flex-direction: column;
-    align-items: stretch;
+  .compact-record-item .record-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .budget-chart-grid {
+    grid-template-columns: 1fr;
   }
 }

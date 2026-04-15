@@ -2,36 +2,240 @@
   <header class="page-header single">
     <div>
       <p class="eyebrow">Dashboard</p>
-      <h1>Distribucion de gastos</h1>
-      <p class="copy">Vista rapida por categoria en formato pastel segun el rango seleccionado.</p>
+      <h1>{{ dashboardTitle() }}</h1>
+      <p class="copy">{{ dashboardCopy() }}</p>
 
       <div class="date-filters">
         <label>
-          <span>Periodo</span>
-          <select [value]="dateFilterPreset()" (change)="setDateFilterPreset($any($event.target).value)">
-            <option value="currentMonth">Mes actual</option>
-            <option value="last3Months">Ultimos 3 meses</option>
-            <option value="custom">Personalizado</option>
+          <span>Menu de dashboard</span>
+          <select [value]="dashboardMode()" (change)="setDashboardMode($any($event.target).value)">
+            <option value="expense">Gastos</option>
+            <option value="income">Ingresos</option>
+            <option value="budget">Presupuesto</option>
           </select>
         </label>
 
-        <label>
-          <span>Desde</span>
-          <app-date-input [value]="filterStartDate()" (valueChange)="setFilterStartDate($event)" />
-        </label>
+        @if (dashboardMode() !== 'budget') {
+          <label>
+            <span>Periodo</span>
+            <select [value]="dateFilterPreset()" (change)="setDateFilterPreset($any($event.target).value)">
+              <option value="currentMonth">Mes actual</option>
+              <option value="last3Months">Ultimos 3 meses</option>
+              <option value="custom">Personalizado</option>
+            </select>
+          </label>
 
-        <label>
-          <span>Hasta</span>
-          <app-date-input [value]="filterEndDate()" (valueChange)="setFilterEndDate($event)" />
-        </label>
+          <label>
+            <span>Desde</span>
+            <app-date-input [value]="filterStartDate()" (valueChange)="setFilterStartDate($event)" />
+          </label>
+
+          <label>
+            <span>Hasta</span>
+            <app-date-input [value]="filterEndDate()" (valueChange)="setFilterEndDate($event)" />
+          </label>
+        }
       </div>
     </div>
   </header>
 
-  @if (dashboard$ | async; as dashboard) {
+  @if (dashboardMode() === 'budget') {
+    @if (budgetDashboard$ | async; as budget) {
+      <div class="budget-grid">
+        <article class="panel budget-summary">
+          <h2>Resumen del mes</h2>
+          <div class="budget-kpis">
+            <div class="budget-kpi">
+              <span>Pagado/registrado (gastos)</span>
+              <strong>{{ budget.registeredExpenseTotal | money: preferencesService.currencyCode() }}</strong>
+              <small>{{ budget.expenseCompletionPercent.toFixed(1) }}% del total esperado</small>
+            </div>
+            <div class="budget-kpi">
+              <span>Ingresos registrados</span>
+              <strong>{{ budget.registeredIncomeTotal | money: preferencesService.currencyCode() }}</strong>
+              <small>{{ budget.incomeCapturePercent.toFixed(1) }}% del total esperado</small>
+            </div>
+            <div class="budget-kpi">
+              <span>Pendiente por pagar</span>
+              <strong class="expense-amount">{{ budget.pendingExpenseTotal | money: preferencesService.currencyCode() }}</strong>
+              <small>{{ budget.overdueExpenseCount }} atrasados</small>
+            </div>
+            <div class="budget-kpi">
+              <span>Ingresos por registrar</span>
+              <strong class="income-amount">{{ budget.pendingIncomeTotal | money: preferencesService.currencyCode() }}</strong>
+              <small>{{ budget.overdueIncomeCount }} atrasados</small>
+            </div>
+          </div>
+
+          <div class="budget-progress-wrap">
+            <p>Avance de gastos del mes</p>
+            <div class="budget-progress-track">
+              <span class="budget-progress-fill expense-fill" [style.width.%]="budget.expenseCompletionPercent"></span>
+            </div>
+          </div>
+
+          <div class="budget-progress-wrap">
+            <p>Avance de ingresos del mes</p>
+            <div class="budget-progress-track">
+              <span class="budget-progress-fill income-fill" [style.width.%]="budget.incomeCapturePercent"></span>
+            </div>
+          </div>
+
+          <p>
+            Balance registrado actual:
+            <strong [class.positive-balance]="budget.registeredBalance > 0" [class.negative-balance]="budget.registeredBalance < 0">
+              {{ budget.registeredBalance | money: preferencesService.currencyCode() }}
+            </strong>
+          </p>
+
+          <p>
+            Balance proyectado:
+            <strong [class.positive-balance]="budget.projectedBalance > 0" [class.negative-balance]="budget.projectedBalance < 0">
+              {{ budget.projectedBalance | money: preferencesService.currencyCode() }}
+            </strong>
+            <span class="budget-status">({{ budgetStatusLabel(budget) }})</span>
+          </p>
+
+          <p>
+            Proximos 7 dias:
+            <strong class="expense-amount">{{ budget.upcomingExpenseTotal | money: preferencesService.currencyCode() }}</strong>
+            vs
+            <strong class="income-amount">{{ budget.upcomingIncomeTotal | money: preferencesService.currencyCode() }}</strong>
+          </p>
+        </article>
+
+        <article class="panel budget-charts-panel">
+          <h2>Grafiquitos utiles</h2>
+          <div class="budget-chart-grid">
+            <section class="mini-chart">
+              <h3>Gastos pendientes por categoria</h3>
+              @if (budget.expenseCategoryBreakdown.length) {
+                <ul class="bar-list">
+                  @for (row of budget.expenseCategoryBreakdown; track row.category) {
+                    <li>
+                      <div class="bar-label-line">
+                        <span>{{ row.category }}</span>
+                        <strong>{{ row.amount | money: preferencesService.currencyCode() }}</strong>
+                      </div>
+                      <div class="bar-track">
+                        <span class="bar-fill" [style.background]="row.color" [style.width.%]="row.share * 100"></span>
+                      </div>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="empty-state">Sin gastos pendientes para graficar.</p>
+              }
+            </section>
+
+            <section class="mini-chart">
+              <h3>Ingresos pendientes por categoria</h3>
+              @if (budget.incomeCategoryBreakdown.length) {
+                <ul class="bar-list">
+                  @for (row of budget.incomeCategoryBreakdown; track row.category) {
+                    <li>
+                      <div class="bar-label-line">
+                        <span>{{ row.category }}</span>
+                        <strong>{{ row.amount | money: preferencesService.currencyCode() }}</strong>
+                      </div>
+                      <div class="bar-track">
+                        <span class="bar-fill" [style.background]="row.color" [style.width.%]="row.share * 100"></span>
+                      </div>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="empty-state">Sin ingresos pendientes para graficar.</p>
+              }
+            </section>
+
+            <section class="mini-chart full-width">
+              <h3>Flujo estimado proximos vencimientos</h3>
+              @if (budget.upcomingTimeline.length) {
+                <ul class="timeline-list">
+                  @for (row of budget.upcomingTimeline; track row.dueDate) {
+                    <li>
+                      <div class="timeline-head">
+                        <span>{{ row.dueDate | date: 'dd/MM/yyyy' }}</span>
+                        <strong [class.positive-balance]="row.netAmount > 0" [class.negative-balance]="row.netAmount < 0">
+                          {{ row.netAmount | money: preferencesService.currencyCode() }}
+                        </strong>
+                      </div>
+                      <div class="timeline-bars">
+                        <span class="timeline-income" [style.width.%]="budget.pendingIncomeTotal > 0 ? (row.incomeAmount / budget.pendingIncomeTotal) * 100 : 0"></span>
+                        <span class="timeline-expense" [style.width.%]="budget.pendingExpenseTotal > 0 ? (row.expenseAmount / budget.pendingExpenseTotal) * 100 : 0"></span>
+                      </div>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="empty-state">No hay vencimientos proximos para proyectar flujo.</p>
+              }
+            </section>
+          </div>
+        </article>
+
+        <article class="panel budget-list-panel">
+          <h2>Lo que tengo que pagar</h2>
+          @if (budget.pendingExpenses.length) {
+            <ul class="record-list compact-record-list">
+              @for (item of budget.pendingExpenses; track item.id) {
+                <li class="compact-record-item">
+                  <div class="record-main">
+                    <span class="record-icon">{{ item.icon }}</span>
+                    <div class="movement-lines">
+                      <strong class="movement-title">{{ item.name }}</strong>
+                      <span class="movement-meta">
+                        {{ item.category }} | {{ item.dueDate | date: 'dd/MM/yyyy' }} | Gasto
+                        @if (item.isOverdue) { | Atrasado }
+                      </span>
+                    </div>
+                  </div>
+                  <div class="record-actions">
+                    <strong class="expense-amount">{{ item.amount | money: preferencesService.currencyCode() }}</strong>
+                  </div>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="empty-state">No tienes pagos pendientes para este mes.</p>
+          }
+        </article>
+
+        <article class="panel budget-list-panel">
+          <h2>Ingresos que aun no registro</h2>
+          @if (budget.pendingIncomes.length) {
+            <ul class="record-list compact-record-list">
+              @for (item of budget.pendingIncomes; track item.id) {
+                <li class="compact-record-item">
+                  <div class="record-main">
+                    <span class="record-icon">{{ item.icon }}</span>
+                    <div class="movement-lines">
+                      <strong class="movement-title">{{ item.name }}</strong>
+                      <span class="movement-meta">
+                        {{ item.category }} | {{ item.dueDate | date: 'dd/MM/yyyy' }} | Ingreso
+                        @if (item.isOverdue) { | Atrasado }
+                      </span>
+                    </div>
+                  </div>
+                  <div class="record-actions">
+                    <strong class="income-amount">{{ item.amount | money: preferencesService.currencyCode() }}</strong>
+                  </div>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="empty-state">No hay ingresos pendientes por registrar este mes.</p>
+          }
+        </article>
+      </div>
+    } @else {
+      <p class="empty-state">Cargando presupuesto...</p>
+    }
+  } @else if ((dashboardMode() === 'income' ? incomeDashboard$ : expenseDashboard$) | async; as dashboard) {
     <div class="content-grid">
       <article class="panel pie-panel">
-        <h2>Pastel de gastos</h2>
+        <h2>{{ pieTitle() }}</h2>
 
         @if (dashboard.slices.length) {
           <div class="pie-wrap">
@@ -42,9 +246,9 @@
             </div>
           </div>
 
-          <p class="meta">Movimientos incluidos: {{ dashboard.expenseCount }} | {{ activeRangeLabel() }}</p>
+          <p class="meta">Movimientos incluidos: {{ dashboard.movementCount }} | {{ activeRangeLabel() }}</p>
         } @else {
-          <p class="empty-state">No hay gastos registrados en el rango seleccionado.</p>
+          <p class="empty-state">No hay {{ dashboardTypeLabel() }} registrados en el rango seleccionado.</p>
         }
       </article>
 
@@ -92,22 +296,26 @@
           </div>
 
           @if (summary.items.length) {
-            <ul class="sub-list">
+            <ul class="record-list compact-record-list">
               @for (item of summary.items; track item.id) {
-                <li>
+                <li class="compact-record-item">
                   <div class="record-main">
                     <span class="record-icon">{{ item.icon }}</span>
-                    <div>
-                      <strong>{{ item.description }}</strong>
-                      <span>{{ item.spentAt | date: 'dd/MM/yyyy' }}</span>
+                    <div class="movement-lines">
+                      <strong class="movement-title">{{ item.description }}</strong>
+                      <span class="movement-meta">{{ item.category }} | {{ item.date | date: 'dd/MM/yyyy' }} | {{ dashboardMode() === 'income' ? 'Ingreso' : 'Gasto' }}</span>
                     </div>
                   </div>
-                  <strong>{{ item.amount | money: preferencesService.currencyCode() }}</strong>
+                  <div class="record-actions">
+                    <strong [class.income-amount]="dashboardMode() === 'income'" [class.expense-amount]="dashboardMode() === 'expense'">
+                      {{ item.amount | money: preferencesService.currencyCode() }}
+                    </strong>
+                  </div>
                 </li>
               }
             </ul>
           } @else {
-            <p class="empty-state">No hay gastos en la categoria seleccionada dentro del rango actual.</p>
+            <p class="empty-state">No hay {{ dashboardTypeLabel() }} en la categoria seleccionada dentro del rango actual.</p>
           }
         } @else {
           <p class="empty-state">Selecciona una categoria para ver su subdashboard.</p>
