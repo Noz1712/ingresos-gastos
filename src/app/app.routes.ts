@@ -2,13 +2,12 @@ import { Routes } from '@angular/router';
 import { authGuard } from './guards/auth.guard';
 import { guestGuard } from './guards/guest.guard';
 import { AppShellComponent } from './layouts/app-shell.component';
-import { AboutPageComponent } from './pages/about-page.component';
-import { DashboardPageComponent } from './pages/dashboard-page.component';
+import { ExpenseCatalogPageComponent } from './pages/expense-catalog-page.component';
 import { ExpenseCategoriesPageComponent } from './pages/expense-categories-page.component';
-import { ExpensesPageComponent } from './pages/expenses-page.component';
+import { IncomeCatalogPageComponent } from './pages/income-catalog-page.component';
 import { IncomeCategoriesPageComponent } from './pages/income-categories-page.component';
-import { IncomesPageComponent } from './pages/incomes-page.component';
 import { LoginPageComponent } from './pages/login-page.component';
+import { MovementsPageComponent } from './pages/movements-page.component';
 import { ProfilePageComponent } from './pages/profile-page.component';
 
 export const routes: Routes = [
@@ -25,31 +24,32 @@ export const routes: Routes = [
       {
         path: '',
         pathMatch: 'full',
-        redirectTo: 'dashboard',
+        redirectTo: 'movimientos',
       },
       {
         path: 'dashboard',
-        component: DashboardPageComponent,
+        redirectTo: 'movimientos',
+        pathMatch: 'full',
       },
       {
-        path: 'ingresos',
-        component: IncomesPageComponent,
+        path: 'movimientos',
+        component: MovementsPageComponent,
       },
       {
         path: 'categorias-ingresos',
         component: IncomeCategoriesPageComponent,
       },
       {
-        path: 'gastos',
-        component: ExpensesPageComponent,
+        path: 'catalogo-ingresos',
+        component: IncomeCatalogPageComponent,
+      },
+      {
+        path: 'catalogo-gastos',
+        component: ExpenseCatalogPageComponent,
       },
       {
         path: 'categorias-gastos',
         component: ExpenseCategoriesPageComponent,
-      },
-      {
-        path: 'acerca',
-        component: AboutPageComponent,
       },
       {
         path: 'perfil',

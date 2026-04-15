@@ -2,6 +2,7 @@ import { AsyncPipe, PercentPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { combineLatest, EMPTY, firstValueFrom, map, Observable, switchMap } from 'rxjs';
+import { CATEGORY_ICON_PRESETS } from '../models/category-icon-presets.model';
 import { UserCategory } from '../models/category.model';
 import { DEFAULT_INCOME_CATEGORIES, Income, IncomeCategory } from '../models/income.model';
 import { MoneyPipe } from '../pipes/money.pipe';
@@ -36,10 +37,11 @@ export class IncomeCategoriesPageComponent {
 
   protected readonly saving = signal(false);
   protected readonly removingId = signal('');
+  protected readonly editingId = signal('');
   protected readonly errorMessage = signal('');
+  protected readonly iconPresets = CATEGORY_ICON_PRESETS;
   protected readonly categoryForm = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.minLength(2)]],
-    color: ['#76b4ff', [Validators.required]],
     icon: ['💰', [Validators.required, Validators.maxLength(4)]],
   });
 
@@ -77,13 +79,44 @@ export class IncomeCategoriesPageComponent {
     this.errorMessage.set('');
 
     try {
-      await this.categoryService.addCategory(user.uid, 'incomeCategories', this.categoryForm.getRawValue());
-      this.categoryForm.patchValue({ name: '', color: '#76b4ff', icon: '💰' });
+      if (this.editingId()) {
+        await this.categoryService.updateCategory(
+          user.uid,
+          'incomeCategories',
+          this.editingId(),
+          this.categoryForm.getRawValue(),
+        );
+      } else {
+        await this.categoryService.addCategory(user.uid, 'incomeCategories', this.categoryForm.getRawValue());
+      }
+
+      this.resetForm();
     } catch {
       this.errorMessage.set('No fue posible guardar la categoria.');
     } finally {
       this.saving.set(false);
     }
+  }
+
+  protected startEdit(category: UserCategory): void {
+    this.editingId.set(category.id);
+    this.errorMessage.set('');
+    this.categoryForm.patchValue({
+      name: category.name,
+      icon: category.icon,
+    });
+  }
+
+  protected cancelEdit(): void {
+    this.resetForm();
+  }
+
+  protected selectIcon(icon: string): void {
+    this.categoryForm.patchValue({ icon });
+  }
+
+  protected isEditing(categoryId: string): boolean {
+    return this.editingId() === categoryId;
   }
 
   protected async addDefaultCategories(): Promise<void> {
@@ -101,7 +134,6 @@ export class IncomeCategoriesPageComponent {
     for (const category of defaultsToCreate) {
       await this.categoryService.addCategory(user.uid, 'incomeCategories', {
         name: category,
-        color: '#76b4ff',
         icon: '💰',
       });
     }
@@ -122,7 +154,15 @@ export class IncomeCategoriesPageComponent {
       this.errorMessage.set('No fue posible eliminar la categoria.');
     } finally {
       this.removingId.set('');
+      if (this.isEditing(categoryId)) {
+        this.resetForm();
+      }
     }
+  }
+
+  private resetForm(): void {
+    this.editingId.set('');
+    this.categoryForm.patchValue({ name: '', icon: '💰' });
   }
 
   private buildSummary(

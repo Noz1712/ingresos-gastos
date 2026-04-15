@@ -1,0 +1,190 @@
+<section class="page">
+  <header class="page-header single">
+    <div>
+      <p class="eyebrow">Catalogo de ingresos</p>
+      <h1>Definicion de ingresos por tipo</h1>
+      <p class="copy">
+        Configura ingresos Eventuales o Recurrentes con los campos requeridos para luego usarlos al registrar
+        movimientos.
+      </p>
+    </div>
+  </header>
+
+  <div class="top-grid">
+    <article class="panel">
+      <h2>{{ isEditing() ? 'Editar item de catalogo' : 'Nuevo item de catalogo' }}</h2>
+      <form [formGroup]="catalogForm" (ngSubmit)="saveCatalogItem()">
+        <label>
+          <span>Nombre</span>
+          <input type="text" formControlName="name" placeholder="Ej. Salario base" />
+        </label>
+
+        <label>
+          <span>Categoria de ingreso</span>
+          <select formControlName="category">
+            @if (incomeCategories$ | async; as incomeCategories) {
+              @for (category of incomeCategories; track category) {
+                <option [value]="category">{{ category }}</option>
+              }
+            } @else {
+              @for (category of fallbackCategories; track category) {
+                <option [value]="category">{{ category }}</option>
+              }
+            }
+          </select>
+        </label>
+
+        <label>
+          <span>Tipo</span>
+          <select formControlName="type" (change)="onTypeChange()">
+            @for (type of types; track type) {
+              <option [value]="type">{{ type }}</option>
+            }
+          </select>
+        </label>
+
+        @if (selectedType() === 'Recurrente') {
+        <label class="checkbox-line">
+          <input type="checkbox" formControlName="isIndefinite" />
+          <span>Fecha de fin indefinida</span>
+        </label>
+        @if (!catalogForm.controls.isIndefinite.value) {
+          <label>
+            <span>Fecha de fin de ingresos</span>
+            <input type="date" lang="es-NI" formControlName="endDate" />
+          </label>
+        }
+        }
+
+        @if (canConfigureDates()) {
+        <button
+          type="button"
+          class="primary-button add-schedule-button"
+          (click)="openScheduleModal()"
+        >
+          Configurar fechas
+        </button>
+        }
+
+        <label>
+          <span>Icono</span>
+        </label>
+
+        <div class="icon-grid" role="listbox" aria-label="Iconos predefinidos">
+          @for (icon of iconPresets; track icon) {
+            <button
+              type="button"
+              class="icon-choice"
+              [class.selected]="catalogForm.controls.icon.value === icon"
+              (click)="selectIcon(icon)"
+            >
+              {{ icon }}
+            </button>
+          }
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="primary-button" [disabled]="saving()">
+            {{ saving() ? 'Guardando...' : (isEditing() ? 'Actualizar item' : 'Guardar item') }}
+          </button>
+          @if (isEditing()) {
+            <button type="button" class="ghost-button" (click)="cancelEdit()">Cancelar edicion</button>
+          }
+        </div>
+      </form>
+
+      @if (errorMessage()) {
+        <p class="error">{{ errorMessage() }}</p>
+      }
+    </article>
+
+    <article class="panel">
+      <h2>Items del catalogo</h2>
+      @if (groupedItems$ | async; as groups) {
+        @if (groups.length) {
+          <div class="catalog-groups">
+            @for (group of groups; track group.type) {
+              <section class="catalog-group">
+                <h3>{{ group.type }}</h3>
+                <ul class="record-list">
+                  @for (item of group.items; track item.id) {
+                    <li>
+                      <div class="record-main">
+                        <span class="record-icon" [style.background]="item.color">{{ item.icon }}</span>
+                        <div>
+                          <strong>{{ item.name }}</strong>
+                          <span>{{ item.type }} | Categoria: {{ item.category }}</span>
+                        </div>
+                      </div>
+                      <div class="record-actions action-row">
+                        <button type="button" class="ghost-button" (click)="startEdit(item)">Editar</button>
+                        <button type="button" class="ghost-button danger-ghost" (click)="deleteItem(item)">Eliminar</button>
+                      </div>
+                    </li>
+                  }
+                </ul>
+              </section>
+            }
+          </div>
+        } @else {
+          <p class="empty-state">Todavia no hay items de ingresos en el catalogo.</p>
+        }
+      } @else {
+        <p class="empty-state">Cargando catalogo...</p>
+      }
+    </article>
+  </div>
+
+  @if (scheduleModalOpen()) {
+  <div class="modal-backdrop" (click)="closeScheduleModal()">
+    <article class="modal-card" (click)="$event.stopPropagation()" [formGroup]="scheduleForm">
+      <h3>Catalogo de fechas y montos</h3>
+
+      <p class="copy">Gestiona las fechas y montos de este ingreso recurrente.</p>
+
+      @if (scheduleItems().length) {
+      <ul class="schedule-list">
+        @for (row of scheduleItems(); track row.day) {
+        <li>
+          <div>
+            <strong>Dia {{ row.day }}</strong>
+            <span>Monto {{ row.amount | money: preferencesService.currencyCode() }}</span>
+          </div>
+          <div class="action-row">
+            <button type="button" class="ghost-button" (click)="beginEditScheduleRow(row)">Editar</button>
+            <button type="button" class="ghost-button danger-ghost" (click)="removeScheduleRow(row.day)">Quitar</button>
+          </div>
+        </li>
+        }
+      </ul>
+      } @else {
+      <p class="empty-state">No hay fechas ni montos cargados.</p>
+      }
+
+      <label>
+        <span>Dia</span>
+        <select formControlName="day">
+          @for (day of dayOptions; track day) {
+          <option [value]="day">{{ day }}</option>
+          }
+        </select>
+      </label>
+
+      <label>
+        <span>Monto</span>
+        <input type="number" min="0.01" step="0.01" formControlName="amount" />
+      </label>
+
+      <div class="modal-actions">
+        @if (editingScheduleDay() !== null) {
+        <button type="button" class="ghost-button" (click)="cancelScheduleEdit()">Cancelar edicion</button>
+        }
+        <button type="button" class="ghost-button" (click)="closeScheduleModal()">Cancelar</button>
+        <button type="button" class="primary-button" (click)="addScheduleRow()">
+          {{ editingScheduleDay() !== null ? 'Actualizar' : 'Agregar' }}
+        </button>
+      </div>
+    </article>
+  </div>
+  }
+</section>

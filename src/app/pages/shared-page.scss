@@ -35,10 +35,10 @@ h2 {
 
 .highlight-card,
 .panel {
-  border: 1px solid rgba(146, 189, 235, 0.34);
+  border: 1px solid var(--panel-border);
   border-radius: 1.6rem;
-  background: rgba(255, 255, 255, 0.82);
-  box-shadow: 0 18px 40px rgba(127, 166, 206, 0.16);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: var(--panel-shadow);
   backdrop-filter: blur(12px);
 }
 
@@ -68,6 +68,12 @@ h2 {
 
 .panel {
   padding: 1.5rem;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.panel:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 36px rgba(107, 152, 201, 0.22);
 }
 
 form {
@@ -99,8 +105,17 @@ select {
   border: 1px solid #cfe2f6;
   border-radius: 1rem;
   padding: 0.9rem 1rem;
-  background: #fafdff;
+  background: #fbfdff;
   color: var(--text-color);
+  transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: #7eb4ea;
+  box-shadow: var(--focus-ring);
+  background: #ffffff;
 }
 
 .primary-button,
@@ -110,16 +125,29 @@ select {
   padding: 0.95rem 1.2rem;
   font-weight: 700;
   cursor: pointer;
+  transition: transform 130ms ease, box-shadow 130ms ease, filter 130ms ease;
 }
 
 .primary-button {
   color: #fff;
-  background: linear-gradient(135deg, #72aef8, #9fd2ff);
+  background: linear-gradient(135deg, #5f9de8, #8ec5ff);
+  box-shadow: 0 10px 20px rgba(111, 167, 230, 0.32);
 }
 
 .ghost-button {
   color: #376391;
   background: #e5f2ff;
+}
+
+.primary-button:hover,
+.ghost-button:hover {
+  transform: translateY(-1px);
+  filter: saturate(1.05);
+}
+
+.primary-button:active,
+.ghost-button:active {
+  transform: translateY(0);
 }
 
 .record-list {
@@ -138,6 +166,7 @@ select {
   padding: 1rem;
   border-radius: 1rem;
   background: #f6fbff;
+  border: 1px solid rgba(197, 222, 248, 0.6);
 }
 
 .record-main {

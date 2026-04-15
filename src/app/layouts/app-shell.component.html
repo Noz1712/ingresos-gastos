@@ -1,7 +1,9 @@
 <div class="app-shell">
   <aside class="sidebar">
     <div class="brand">
-      <div class="brand-mark">IG</div>
+      <div class="brand-mark" aria-hidden="true">
+        <img src="branding/logo-96.png" alt="" />
+      </div>
       <div>
         <strong>Ingresos y Gastos</strong>
         <p>Finanzas personales</p>
@@ -9,13 +11,15 @@
     </div>
 
     <nav class="nav">
-      <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
-      <a routerLink="/ingresos" routerLinkActive="active">Ingresos</a>
-      <a routerLink="/categorias-ingresos" routerLinkActive="active">Categorias ingresos</a>
-      <a routerLink="/gastos" routerLinkActive="active">Gastos</a>
-      <a routerLink="/categorias-gastos" routerLinkActive="active">Categorias gastos</a>
-      <a routerLink="/acerca" routerLinkActive="active">Acerca</a>
+      <a routerLink="/movimientos" routerLinkActive="active">Movimientos</a>
       <a routerLink="/perfil" routerLinkActive="active">Perfil</a>
+      <details class="nav-group" open>
+        <summary>Catalogo</summary>
+        <a routerLink="/catalogo-gastos" routerLinkActive="active">Catalogo de gasto</a>
+        <a routerLink="/catalogo-ingresos" routerLinkActive="active">Catalogo de ingreso</a>
+        <a routerLink="/categorias-gastos" routerLinkActive="active">Categoria gasto</a>
+        <a routerLink="/categorias-ingresos" routerLinkActive="active">Categoria ingreso</a>
+      </details>
     </nav>
 
     @if (user$ | async; as user) {

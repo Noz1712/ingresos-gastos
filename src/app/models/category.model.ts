@@ -11,6 +11,6 @@ export interface UserCategory {
 
 export interface UserCategoryInput {
   name: string;
-  color: string;
+  color?: string;
   icon: string;
 }

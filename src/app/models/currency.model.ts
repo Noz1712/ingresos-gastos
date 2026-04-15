@@ -7,6 +7,7 @@ export interface CurrencyOption {
 
 export const CURRENCY_CATALOG: CurrencyOption[] = [
   { code: 'GTQ', name: 'Quetzal guatemalteco', symbol: 'Q', locale: 'es-GT' },
+  { code: 'NIO', name: 'Córdoba Oro nicaragüense', symbol: 'C$', locale: 'es-NI' },
   { code: 'USD', name: 'Dolar estadounidense', symbol: '$', locale: 'en-US' },
   { code: 'EUR', name: 'Euro', symbol: 'EUR', locale: 'es-ES' },
   { code: 'MXN', name: 'Peso mexicano', symbol: '$', locale: 'es-MX' },
@@ -18,7 +19,7 @@ export const CURRENCY_CATALOG: CurrencyOption[] = [
   { code: 'HNL', name: 'Lempira hondurena', symbol: 'L', locale: 'es-HN' },
 ];
 
-export const DEFAULT_CURRENCY = CURRENCY_CATALOG[0];
+export const DEFAULT_CURRENCY = CURRENCY_CATALOG.find((currency) => currency.code === 'NIO') ?? CURRENCY_CATALOG[0];
 
 export function getCurrencyOption(code?: string | null): CurrencyOption {
   return CURRENCY_CATALOG.find((item) => item.code === code) ?? DEFAULT_CURRENCY;

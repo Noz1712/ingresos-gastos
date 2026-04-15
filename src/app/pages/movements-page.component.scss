@@ -1,0 +1,100 @@
+@use './shared-page';
+
+.event-form {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 1rem;
+}
+
+.event-form button {
+  margin-top: 0.25rem;
+}
+
+.new-catalog-box {
+  display: grid;
+  gap: 0.75rem;
+  border: 1px solid #d8e9fb;
+  border-radius: 1rem;
+  background: #f6fbff;
+  padding: 1rem;
+}
+
+.new-catalog-box h3 {
+  margin: 0;
+  color: var(--primary-strong);
+}
+
+.content-grid {
+  margin-bottom: 1.25rem;
+}
+
+.income-badge {
+  color: #2c7b57;
+}
+
+.expense-badge {
+  color: #a25573;
+}
+
+.danger-ghost {
+  background: #fdecef;
+  color: #9f3c56;
+}
+
+.compact-panel {
+  padding: 1rem 1.1rem;
+}
+
+.compact-record-list {
+  margin-top: 0.7rem;
+  max-height: 22rem;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.compact-record-item {
+  padding: 0.7rem 0.75rem;
+  gap: 0.7rem;
+}
+
+.compact-record-item .record-main {
+  gap: 0.55rem;
+}
+
+.compact-record-item .record-icon {
+  width: 1.8rem;
+  height: 1.8rem;
+  font-size: 1rem;
+}
+
+.compact-record-item .record-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.compact-record-item .record-actions strong {
+  white-space: nowrap;
+}
+
+.compact-record-item .badge {
+  font-size: 0.78rem;
+}
+
+.compact-record-item .ghost-button {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 900px) {
+  .compact-record-list {
+    max-height: 18rem;
+  }
+
+  .compact-record-item .record-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}

@@ -1,0 +1,14 @@
+@use './expense-catalog-page.component';
+
+:host {
+	.action-row {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.danger-ghost {
+		background: #fdecef;
+		color: #9f3c56;
+	}
+}

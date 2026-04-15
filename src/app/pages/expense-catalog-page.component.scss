@@ -1,0 +1,165 @@
+@use './shared-page';
+
+.single {
+  margin-bottom: 1.5rem;
+}
+
+.top-grid {
+  display: grid;
+  grid-template-columns: minmax(18rem, 25rem) 1fr;
+  gap: 1.25rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.icon-choice {
+  border: 1px solid #d6e8fa;
+  background: #f8fcff;
+  border-radius: 0.65rem;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.4rem 0;
+  cursor: pointer;
+}
+
+.icon-choice.selected {
+  border-color: #7fb4eb;
+  background: #e9f4ff;
+}
+
+.checkbox-line {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.schedule-box {
+  border: 1px solid #d7e9fb;
+  border-radius: 1rem;
+  padding: 1rem;
+  background: #f7fbff;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.schedule-box h3 {
+  margin: 0;
+  color: var(--primary-strong);
+}
+
+.schedule-form-row {
+  display: grid;
+  grid-template-columns: minmax(6rem, 8rem) minmax(8rem, 1fr) auto;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.add-schedule-button {
+  white-space: nowrap;
+}
+
+.schedule-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.schedule-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+  border: 1px solid #dfedfc;
+  border-radius: 0.9rem;
+  padding: 0.65rem 0.75rem;
+  background: #ffffff;
+}
+
+.schedule-list li div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.catalog-groups {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.catalog-group h3 {
+  margin: 0 0 0.5rem;
+  color: var(--primary-strong);
+}
+
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.danger-ghost {
+  background: #fdecef;
+  color: #9f3c56;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(27, 43, 61, 0.45);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  z-index: 40;
+}
+
+.modal-card {
+  width: min(26rem, 100%);
+  border-radius: 1rem;
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid #d7e9fb;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.modal-card h3 {
+  margin: 0;
+  color: var(--primary-strong);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+@media (max-width: 900px) {
+  .top-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .icon-grid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
+  .schedule-form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .action-row {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

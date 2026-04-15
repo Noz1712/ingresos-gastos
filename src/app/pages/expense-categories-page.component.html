@@ -18,23 +18,31 @@
           <input type="text" formControlName="name" placeholder="Ej. Educacion" />
         </label>
 
-        <label>
-          <span>Color</span>
-          <input type="color" formControlName="color" />
-        </label>
-
-        <label>
-          <span>Icono</span>
-          <input type="text" formControlName="icon" placeholder="🛒" maxlength="4" />
-        </label>
+        <div class="icon-grid" role="listbox" aria-label="Iconos predefinidos">
+          @for (icon of iconPresets; track icon) {
+            <button
+              type="button"
+              class="icon-choice"
+              [class.selected]="categoryForm.controls.icon.value === icon"
+              (click)="selectIcon(icon)"
+            >
+              {{ icon }}
+            </button>
+          }
+        </div>
 
         <div class="actions">
           <button type="submit" class="primary-button" [disabled]="saving()">
-            {{ saving() ? 'Guardando...' : 'Guardar categoria' }}
+            {{ saving() ? 'Guardando...' : (editingId() ? 'Actualizar categoria' : 'Guardar categoria') }}
           </button>
           <button type="button" class="ghost-button" (click)="addDefaultCategories()">
             Cargar sugeridas
           </button>
+          @if (editingId()) {
+            <button type="button" class="ghost-button" (click)="cancelEdit()">
+              Cancelar edicion
+            </button>
+          }
         </div>
       </form>
 
@@ -50,9 +58,15 @@
           <ul class="chip-list">
             @for (category of categories; track category.id) {
               <li>
-                <span class="dot" [style.background]="category.color"></span>
                 <span class="chip-icon">{{ category.icon }}</span>
                 <strong>{{ category.name }}</strong>
+                <button
+                  type="button"
+                  class="chip-action"
+                  (click)="startEdit(category)"
+                >
+                  {{ isEditing(category.id) ? 'Editando' : 'Editar' }}
+                </button>
                 <button
                   type="button"
                   class="chip-action"
@@ -78,7 +92,6 @@
           <article class="panel category-card">
             <div class="category-top">
               <div class="category-label">
-                <span class="dot" [style.background]="summary.color || '#76b4ff'"></span>
                 <span class="chip-icon">{{ summary.icon || '🛒' }}</span>
                 <strong>{{ summary.category }}</strong>
               </div>
@@ -92,7 +105,7 @@
               <div
                 class="progress-bar"
                 [style.width.%]="summary.share * 100"
-                [style.background]="summary.color || '#76b4ff'"
+                [style.background]="'#76b4ff'"
               ></div>
             </div>
           </article>

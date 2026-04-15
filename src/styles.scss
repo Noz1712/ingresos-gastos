@@ -2,13 +2,17 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+  font-family: 'Segoe UI Variable', 'Segoe UI', 'Trebuchet MS', sans-serif;
 }
 
 body {
   min-height: 100vh;
-  background: #eef6ff;
+  background:
+    radial-gradient(circle at 12% 10%, rgba(174, 211, 255, 0.32), transparent 34%),
+    radial-gradient(circle at 88% 0%, rgba(228, 241, 255, 0.72), transparent 36%),
+    linear-gradient(180deg, #eef6ff 0%, #e8f3ff 58%, #f4faff 100%);
   color: #2a4d75;
+  line-height: 1.45;
 }
 
 * {
@@ -16,7 +20,10 @@ body {
 }
 
 :root {
-  --primary-strong: #3c6f9f;
-  --text-color: #2d5179;
-  --muted-text: #6c89aa;
+  --primary-strong: #2d628f;
+  --text-color: #284b71;
+  --muted-text: #5f7fa3;
+  --panel-border: rgba(125, 174, 224, 0.32);
+  --panel-shadow: 0 14px 32px rgba(110, 154, 201, 0.18);
+  --focus-ring: 0 0 0 3px rgba(117, 173, 233, 0.24);
 }

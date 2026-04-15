@@ -8,6 +8,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  updateDoc,
 } from 'firebase/firestore';
 import { Observable } from 'rxjs';
 import { FIREBASE_FIRESTORE } from '../firebase.tokens';
@@ -55,7 +56,7 @@ export class CategoryService {
     await addDoc(categoriesRef, {
       userId,
       name: input.name.trim(),
-      color: input.color,
+      color: input.color || '#76b4ff',
       icon: input.icon || '🏷️',
       createdAt: serverTimestamp(),
     });
@@ -64,6 +65,20 @@ export class CategoryService {
   async deleteCategory(userId: string, kind: CategoryKind, categoryId: string): Promise<void> {
     const categoryRef = doc(this.firestore, `users/${userId}/${kind}/${categoryId}`);
     await deleteDoc(categoryRef);
+  }
+
+  async updateCategory(
+    userId: string,
+    kind: CategoryKind,
+    categoryId: string,
+    input: UserCategoryInput,
+  ): Promise<void> {
+    const categoryRef = doc(this.firestore, `users/${userId}/${kind}/${categoryId}`);
+    await updateDoc(categoryRef, {
+      name: input.name.trim(),
+      color: input.color || '#76b4ff',
+      icon: input.icon || '🏷️',
+    });
   }
 
   private asIsoDate(value: unknown): string {

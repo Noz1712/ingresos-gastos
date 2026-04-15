@@ -44,6 +44,31 @@
           </select>
         </label>
         <button type="button" class="primary-button" (click)="saveCurrency()">Guardar moneda</button>
+
+        <h2>Catalogo predefinido</h2>
+        <p class="copy">Carga los gastos predefinidos iniciales en tu catalogo de gasto.</p>
+        <button type="button" class="ghost-button" [disabled]="defaultsLoading()" (click)="loadDefaultCatalog()">
+          {{ defaultsLoading() ? 'Cargando...' : 'Cargar predefinidos' }}
+        </button>
+        @if (defaultsMessage()) {
+          <p class="copy">{{ defaultsMessage() }}</p>
+        }
+      </article>
+
+      <article class="panel danger-card">
+        <h2>Reiniciar aplicacion</h2>
+        <p class="copy">
+          Borra todos tus datos (ingresos, gastos, catalogos, pendientes y configuracion) para comenzar de cero.
+        </p>
+        <button type="button" class="danger-button" [disabled]="resetInProgress()" (click)="resetAppData()">
+          {{ resetInProgress() ? 'Reiniciando...' : 'Borrar todo e iniciar de 0' }}
+        </button>
+        @if (resetSuccessMessage()) {
+          <p class="success">{{ resetSuccessMessage() }}</p>
+        }
+        @if (resetErrorMessage()) {
+          <p class="error">{{ resetErrorMessage() }}</p>
+        }
       </article>
     </div>
   }

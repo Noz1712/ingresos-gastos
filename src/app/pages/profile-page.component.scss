@@ -6,7 +6,7 @@
 
 .profile-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(18rem, 0.9fr);
+  grid-template-columns: minmax(0, 1.5fr) minmax(18rem, 1fr);
   gap: 1.5rem;
 }
 
@@ -52,6 +52,46 @@ dd {
   display: grid;
   gap: 1rem;
   align-content: start;
+}
+
+.danger-card {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+  border-color: #f2d2da;
+  background: linear-gradient(180deg, rgba(255, 249, 250, 0.95), rgba(255, 244, 246, 0.95));
+}
+
+.danger-button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.95rem 1.2rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  color: #fff;
+  background: linear-gradient(135deg, #ca4d69, #e56b84);
+  box-shadow: 0 10px 20px rgba(202, 77, 105, 0.28);
+  transition: transform 130ms ease, box-shadow 130ms ease, filter 130ms ease;
+}
+
+.danger-button:hover {
+  transform: translateY(-1px);
+  filter: saturate(1.05);
+}
+
+.danger-button:active {
+  transform: translateY(0);
+}
+
+.danger-button:disabled {
+  opacity: 0.72;
+  cursor: default;
+}
+
+.success {
+  margin: 0;
+  color: #2c7b57;
 }
 
 @media (max-width: 800px) {
