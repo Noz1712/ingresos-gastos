@@ -136,7 +136,7 @@
   </div>
 
   @if (scheduleModalOpen()) {
-  <div class="modal-backdrop" (click)="closeScheduleModal()">
+  <div class="modal-backdrop">
     <article class="modal-card" (click)="$event.stopPropagation()" [formGroup]="scheduleForm">
       <h3>Catalogo de fechas y montos</h3>
 

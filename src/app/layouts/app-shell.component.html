@@ -1,5 +1,9 @@
 <div class="app-shell">
-  <aside class="sidebar">
+  @if (mobileSidebarOpen()) {
+    <button type="button" class="sidebar-overlay" (click)="closeMobileSidebar()" aria-label="Cerrar menu"></button>
+  }
+
+  <aside class="sidebar" [class.mobile-open]="mobileSidebarOpen()">
     <div class="brand">
       <div class="brand-mark" aria-hidden="true">
         <img src="branding/logo-96.png" alt="" />
@@ -11,14 +15,14 @@
     </div>
 
     <nav class="nav">
-      <a routerLink="/movimientos" routerLinkActive="active">Movimientos</a>
-      <a routerLink="/perfil" routerLinkActive="active">Perfil</a>
+      <a routerLink="/movimientos" routerLinkActive="active" (click)="closeMobileSidebar()">Movimientos</a>
+      <a routerLink="/perfil" routerLinkActive="active" (click)="closeMobileSidebar()">Perfil</a>
       <details class="nav-group" open>
         <summary>Catalogo</summary>
-        <a routerLink="/catalogo-gastos" routerLinkActive="active">Catalogo de gasto</a>
-        <a routerLink="/catalogo-ingresos" routerLinkActive="active">Catalogo de ingreso</a>
-        <a routerLink="/categorias-gastos" routerLinkActive="active">Categoria gasto</a>
-        <a routerLink="/categorias-ingresos" routerLinkActive="active">Categoria ingreso</a>
+        <a routerLink="/catalogo-gastos" routerLinkActive="active" (click)="closeMobileSidebar()">Catalogo de gasto</a>
+        <a routerLink="/catalogo-ingresos" routerLinkActive="active" (click)="closeMobileSidebar()">Catalogo de ingreso</a>
+        <a routerLink="/categorias-gastos" routerLinkActive="active" (click)="closeMobileSidebar()">Categoria gasto</a>
+        <a routerLink="/categorias-ingresos" routerLinkActive="active" (click)="closeMobileSidebar()">Categoria ingreso</a>
       </details>
     </nav>
 
@@ -36,6 +40,9 @@
   </aside>
 
   <main class="content">
+    <button type="button" class="mobile-menu-button" (click)="toggleMobileSidebar()" aria-label="Abrir menu">
+      Menu
+    </button>
     <router-outlet />
   </main>
 </div>

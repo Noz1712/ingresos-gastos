@@ -124,8 +124,8 @@
               <div class="record-main">
                 <span class="record-icon">{{ movement.icon }}</span>
                 <div>
-                  <strong>{{ movement.title }} - </strong>
-                  <span>{{ movement.category }} | {{ movement.date | date: 'dd/MM/yyyy' }}</span>
+                  <strong>{{ movement.title }}</strong>
+                  <span>{{ movement.kind === 'income' ? 'Ingreso' : 'Gasto' }} | {{ movement.category }} | {{ movement.date | date: 'dd/MM/yyyy' }}</span>
                 </div>
               </div>
               <div class="record-actions">
