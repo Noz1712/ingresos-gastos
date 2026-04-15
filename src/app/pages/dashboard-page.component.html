@@ -47,6 +47,54 @@
         }
       </article>
     </div>
+
+    <article class="panel subdashboard-panel">
+      <h2>Subdashboard por categoria</h2>
+
+      @if (dashboard.slices.length) {
+        <label>
+          <span>Categoria</span>
+          <select [value]="selectedCategory()" (change)="setSelectedCategory($any($event.target).value)">
+            <option value="" disabled>Selecciona una categoria</option>
+            @for (slice of dashboard.slices; track slice.category) {
+              <option [value]="slice.category">{{ slice.category }}</option>
+            }
+          </select>
+        </label>
+
+        @if (getSelectedCategorySummary(dashboard); as summary) {
+          <div class="subdashboard-summary">
+            <p><strong>{{ summary.category }}</strong></p>
+            <p>Total: {{ summary.total | money: preferencesService.currencyCode() }}</p>
+            <p>Movimientos: {{ summary.count }}</p>
+            <p>Promedio: {{ summary.average | money: preferencesService.currencyCode() }}</p>
+          </div>
+
+          @if (summary.items.length) {
+            <ul class="sub-list">
+              @for (item of summary.items; track item.id) {
+                <li>
+                  <div class="record-main">
+                    <span class="record-icon">{{ item.icon }}</span>
+                    <div>
+                      <strong>{{ item.description }}</strong>
+                      <span>{{ item.spentAt | date: 'dd/MM/yyyy' }}</span>
+                    </div>
+                  </div>
+                  <strong>{{ item.amount | money: preferencesService.currencyCode() }}</strong>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="empty-state">No hay gastos en la categoria seleccionada este mes.</p>
+          }
+        } @else {
+          <p class="empty-state">Selecciona una categoria para ver su subdashboard.</p>
+        }
+      } @else {
+        <p class="empty-state">Aun no hay datos para filtrar por categoria.</p>
+      }
+    </article>
   } @else {
     <p class="empty-state">Cargando dashboard...</p>
   }

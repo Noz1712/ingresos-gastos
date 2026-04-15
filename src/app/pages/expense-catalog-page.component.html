@@ -167,6 +167,21 @@
                 }
             </p>
 
+            @if (selectedType() === 'Deuda' && debtProjection(); as projection) {
+            <section class="debt-simulation-box">
+                <h4>Simulacion de deuda</h4>
+                <p>
+                    Pago mensual estimado: {{ projection.monthlyTotal | money: preferencesService.currencyCode() }}
+                </p>
+                <p>
+                    Cuotas estimadas: {{ projection.estimatedInstallments }} | Meses estimados: {{ projection.estimatedMonths }}
+                </p>
+                <p>
+                    Fecha estimada de finalizacion: {{ projection.completionDate | date: 'dd/MM/yyyy' }}
+                </p>
+            </section>
+            }
+
             @if (scheduleItems().length) {
             <ul class="schedule-list">
                 @for (row of scheduleItems(); track row.day) {

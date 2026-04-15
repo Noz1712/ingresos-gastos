@@ -44,15 +44,6 @@
           </select>
         </label>
         <button type="button" class="primary-button" (click)="saveCurrency()">Guardar moneda</button>
-
-        <h2>Catalogo predefinido</h2>
-        <p class="copy">Carga los gastos predefinidos iniciales en tu catalogo de gasto.</p>
-        <button type="button" class="ghost-button" [disabled]="defaultsLoading()" (click)="loadDefaultCatalog()">
-          {{ defaultsLoading() ? 'Cargando...' : 'Cargar predefinidos' }}
-        </button>
-        @if (defaultsMessage()) {
-          <p class="copy">{{ defaultsMessage() }}</p>
-        }
       </article>
 
       <article class="panel danger-card">

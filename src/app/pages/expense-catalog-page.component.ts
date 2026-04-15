@@ -80,7 +80,6 @@ export class ExpenseCatalogPageComponent {
         return EMPTY;
       }
 
-      void this.catalogService.ensureDefaultsForUser(user.uid);
       return this.catalogService.itemsForUser(user.uid);
     }),
   );
@@ -109,55 +108,47 @@ export class ExpenseCatalogPageComponent {
     const type = this.selectedType();
     return type === 'Recurrente' || type === 'Deuda';
   });
-  protected readonly debtCompletionDate = computed(() => {
+  protected readonly debtProjection = computed(() => {
     if (this.selectedType() !== 'Deuda') {
-      return '';
+      return null;
     }
 
     const totalDebt = Number(this.catalogForm.controls.initialDebt.value || 0);
     if (!Number.isFinite(totalDebt) || totalDebt <= 0) {
-      return '';
+      return null;
     }
 
     const schedules = this.scheduleItems();
     if (!schedules.length) {
+      return null;
+    }
+
+    const monthlyTotal = schedules.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    if (!Number.isFinite(monthlyTotal) || monthlyTotal <= 0) {
+      return null;
+    }
+
+    const projection = this.projectDebtPlan(totalDebt, schedules);
+    if (!projection) {
+      return null;
+    }
+
+    return {
+      monthlyTotal,
+      estimatedInstallments: projection.paymentCount,
+      estimatedMonths: projection.monthCount,
+      completionDate: projection.completionDate,
+    };
+  });
+  protected readonly debtCompletionDate = computed(() => {
+    const type = this.normalizeType(this.catalogForm.controls.type.value);
+    if (type !== 'Deuda') {
       return '';
     }
 
-    const today = new Date();
-    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    let remaining = totalDebt;
-    let currentYear = start.getFullYear();
-    let currentMonth = start.getMonth();
-
-    const uniqueSchedules = [...schedules]
-      .filter((entry) => Number.isInteger(entry.day) && entry.day >= 1 && entry.day <= 31)
-      .sort((left, right) => left.day - right.day);
-
-    for (let cycle = 0; cycle < 600; cycle += 1) {
-      for (const schedule of uniqueSchedules) {
-        const monthLastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
-        const dueDay = Math.min(schedule.day, monthLastDay);
-        const dueDate = new Date(currentYear, currentMonth, dueDay);
-
-        if (dueDate < start) {
-          continue;
-        }
-
-        remaining -= Number(schedule.amount || 0);
-        if (remaining <= 0) {
-          return dueDate.toISOString().slice(0, 10);
-        }
-      }
-
-      currentMonth += 1;
-      if (currentMonth > 11) {
-        currentMonth = 0;
-        currentYear += 1;
-      }
-    }
-
-    return '';
+    const totalDebt = Number(this.catalogForm.controls.initialDebt.value || 0);
+    const projection = this.projectDebtPlan(totalDebt, this.scheduleItems());
+    return projection?.completionDate ?? '';
   });
 
   protected async saveCatalogItem(): Promise<void> {
@@ -173,7 +164,10 @@ export class ExpenseCatalogPageComponent {
     try {
       const form = this.catalogForm.getRawValue();
       const schedules = this.scheduleItems();
-      const completionDate = this.debtCompletionDate();
+      const completionDate =
+        form.type === 'Deuda'
+          ? this.projectDebtPlan(Number(form.initialDebt || 0), schedules)?.completionDate ?? ''
+          : '';
 
       if ((form.type === 'Recurrente' || form.type === 'Deuda') && !schedules.length) {
         this.errorMessage.set('Agrega al menos una fecha de pago.');
@@ -315,6 +309,7 @@ export class ExpenseCatalogPageComponent {
   }
 
   protected closeScheduleModal(): void {
+    this.syncDebtCompletionDateInForm();
     this.editingScheduleDay.set(null);
     this.scheduleModalOpen.set(false);
   }
@@ -388,6 +383,7 @@ export class ExpenseCatalogPageComponent {
 
     if (type === 'Deuda') {
       this.catalogForm.patchValue({ isIndefinite: false });
+      this.syncDebtCompletionDateInForm();
     }
 
     if (type === 'Eventual' && this.scheduleItems().length > 1) {
@@ -410,5 +406,81 @@ export class ExpenseCatalogPageComponent {
     }
 
     return 'Eventual';
+  }
+
+  private syncDebtCompletionDateInForm(): void {
+    const type = this.normalizeType(this.catalogForm.controls.type.value);
+    if (type !== 'Deuda') {
+      return;
+    }
+
+    const completionDate = this.debtCompletionDate();
+    this.catalogForm.patchValue({ endDate: completionDate || '' });
+  }
+
+  private projectDebtPlan(totalDebt: number, schedules: CatalogScheduleEntry[]): {
+    completionDate: string;
+    paymentCount: number;
+    monthCount: number;
+  } | null {
+    if (!Number.isFinite(totalDebt) || totalDebt <= 0) {
+      return null;
+    }
+
+    const uniqueSchedules = [...schedules]
+      .filter((entry) => Number.isInteger(entry.day) && entry.day >= 1 && entry.day <= 31 && Number(entry.amount || 0) > 0)
+      .sort((left, right) => left.day - right.day);
+
+    if (!uniqueSchedules.length) {
+      return null;
+    }
+
+    const monthlyTotal = uniqueSchedules.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+    if (!Number.isFinite(monthlyTotal) || monthlyTotal <= 0) {
+      return null;
+    }
+
+    const estimatedMonths = Math.ceil(totalDebt / monthlyTotal);
+    const maxCycles = Math.min(12000, Math.max(36, estimatedMonths + 24));
+
+    const today = new Date();
+    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    let remaining = totalDebt;
+    let currentYear = start.getFullYear();
+    let currentMonth = start.getMonth();
+    let paymentCount = 0;
+    const months = new Set<string>();
+
+    for (let cycle = 0; cycle < maxCycles; cycle += 1) {
+      for (const schedule of uniqueSchedules) {
+        const monthLastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
+        const dueDay = Math.min(schedule.day, monthLastDay);
+        const dueDate = new Date(currentYear, currentMonth, dueDay);
+
+        if (dueDate < start) {
+          continue;
+        }
+
+        remaining -= Number(schedule.amount || 0);
+        paymentCount += 1;
+        months.add(`${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}`);
+
+        if (remaining <= 0) {
+          return {
+            completionDate: dueDate.toISOString().slice(0, 10),
+            paymentCount,
+            monthCount: months.size,
+          };
+        }
+      }
+
+      currentMonth += 1;
+      if (currentMonth > 11) {
+        currentMonth = 0;
+        currentYear += 1;
+      }
+    }
+
+    return null;
   }
 }

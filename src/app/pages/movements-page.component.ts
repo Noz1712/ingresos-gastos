@@ -76,7 +76,6 @@ export class MovementsPageComponent {
         return EMPTY;
       }
 
-      void this.expenseCatalogService.ensureDefaultsForUser(user.uid);
       return this.expenseCatalogService.itemsForUser(user.uid);
     }),
   );

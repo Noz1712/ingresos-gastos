@@ -3,7 +3,6 @@ import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@ang
 import { CURRENCY_CATALOG } from '../models/currency.model';
 import { AppResetService } from '../services/app-reset.service';
 import { AuthService } from '../services/auth.service';
-import { ExpenseCatalogService } from '../services/expense-catalog.service';
 import { UserPreferencesService } from '../services/user-preferences.service';
 
 @Component({
@@ -16,14 +15,11 @@ import { UserPreferencesService } from '../services/user-preferences.service';
 export class ProfilePageComponent {
   private readonly authService = inject(AuthService);
   private readonly appResetService = inject(AppResetService);
-  private readonly expenseCatalogService = inject(ExpenseCatalogService);
 
   protected readonly user$ = this.authService.user$;
   protected readonly preferencesService = inject(UserPreferencesService);
   protected readonly currencies = CURRENCY_CATALOG;
   protected readonly selectedCurrencyCode = signal(this.preferencesService.currencyCode());
-  protected readonly defaultsLoading = signal(false);
-  protected readonly defaultsMessage = signal('');
   protected readonly resetInProgress = signal(false);
   protected readonly resetErrorMessage = signal('');
   protected readonly resetSuccessMessage = signal('');
@@ -36,30 +32,6 @@ export class ProfilePageComponent {
 
   protected async saveCurrency(): Promise<void> {
     await this.preferencesService.saveCurrency(this.selectedCurrencyCode());
-  }
-
-  protected async loadDefaultCatalog(): Promise<void> {
-    if (this.defaultsLoading()) {
-      return;
-    }
-
-    const user = await this.authService.currentUser();
-    if (!user) {
-      this.defaultsMessage.set('No hay usuario autenticado para cargar predefinidos.');
-      return;
-    }
-
-    this.defaultsLoading.set(true);
-    this.defaultsMessage.set('');
-
-    try {
-      await this.expenseCatalogService.ensureDefaultsForUser(user.uid);
-      this.defaultsMessage.set('Catalogo predefinido cargado. Si ya existian items, no se duplicaron.');
-    } catch {
-      this.defaultsMessage.set('No se pudieron cargar los predefinidos. Intenta nuevamente.');
-    } finally {
-      this.defaultsLoading.set(false);
-    }
   }
 
   protected async resetAppData(): Promise<void> {

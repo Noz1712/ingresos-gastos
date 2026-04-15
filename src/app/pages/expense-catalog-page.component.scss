@@ -139,6 +139,25 @@
   color: var(--primary-strong);
 }
 
+.debt-simulation-box {
+  border: 1px solid #d7e9fb;
+  border-radius: 0.9rem;
+  background: #f7fbff;
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.debt-simulation-box h4 {
+  margin: 0;
+  color: var(--primary-strong);
+}
+
+.debt-simulation-box p {
+  margin: 0;
+  color: var(--muted-text);
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;

@@ -1,5 +1,5 @@
-import { AsyncPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { AsyncPipe, DatePipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { EMPTY, map, Observable, switchMap } from 'rxjs';
 import { MoneyPipe } from '../pipes/money.pipe';
 import { AuthService } from '../services/auth.service';
@@ -18,11 +18,19 @@ type DashboardState = {
   expenseCount: number;
   slices: ExpenseSlice[];
   gradient: string;
+  monthlyExpenses: Array<{
+    id: string;
+    description: string;
+    icon: string;
+    category: string;
+    amount: number;
+    spentAt: string;
+  }>;
 };
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [AsyncPipe, MoneyPipe],
+  imports: [AsyncPipe, DatePipe, MoneyPipe],
   templateUrl: './dashboard-page.component.html',
   styleUrl: './dashboard-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -31,6 +39,7 @@ export class DashboardPageComponent {
   private readonly authService = inject(AuthService);
   private readonly expenseService = inject(ExpenseService);
   protected readonly preferencesService = inject(UserPreferencesService);
+  protected readonly selectedCategory = signal('');
 
   protected readonly dashboard$ = this.authService.user$.pipe(
     switchMap((user): Observable<DashboardState> => {
@@ -42,12 +51,51 @@ export class DashboardPageComponent {
     }),
   );
 
-  private buildDashboardState(expenses: Array<{ amount: number; category: string; spentAt: string }>): DashboardState {
+  protected setSelectedCategory(category: string): void {
+    this.selectedCategory.set(category);
+  }
+
+  protected getSelectedCategorySummary(dashboard: DashboardState): {
+    category: string;
+    total: number;
+    count: number;
+    average: number;
+    items: DashboardState['monthlyExpenses'];
+  } | null {
+    const selectedCategory = this.selectedCategory();
+    if (!selectedCategory) {
+      return null;
+    }
+
+    const items = dashboard.monthlyExpenses.filter((item) => item.category === selectedCategory);
+    if (!items.length) {
+      return {
+        category: selectedCategory,
+        total: 0,
+        count: 0,
+        average: 0,
+        items: [],
+      };
+    }
+
+    const total = items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    return {
+      category: selectedCategory,
+      total,
+      count: items.length,
+      average: total / items.length,
+      items,
+    };
+  }
+
+  private buildDashboardState(expenses: Array<{ id: string; description: string; icon: string; amount: number; category: string; spentAt: string }>): DashboardState {
     const now = new Date();
-    const monthlyExpenses = expenses.filter((expense) => {
+    const monthlyExpenses = expenses
+      .filter((expense) => {
       const spentDate = new Date(`${expense.spentAt}T00:00:00`);
       return spentDate.getFullYear() === now.getFullYear() && spentDate.getMonth() === now.getMonth();
-    });
+      })
+      .sort((left, right) => right.spentAt.localeCompare(left.spentAt));
 
     const total = monthlyExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
     const totalsByCategory = new Map<string, number>();
@@ -74,6 +122,7 @@ export class DashboardPageComponent {
       expenseCount: monthlyExpenses.length,
       slices,
       gradient,
+      monthlyExpenses,
     };
   }
 

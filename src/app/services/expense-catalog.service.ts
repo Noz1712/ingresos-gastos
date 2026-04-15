@@ -4,8 +4,6 @@ import {
   collection,
   deleteDoc,
   doc,
-  getDocs,
-  limit,
   onSnapshot,
   orderBy,
   query,
@@ -17,7 +15,6 @@ import { FIREBASE_FIRESTORE } from '../firebase.tokens';
 import {
   CatalogScheduleEntry,
   DebtPaymentMode,
-  DEFAULT_EXPENSE_CATALOG,
   ExpenseCatalogInput,
   ExpenseCatalogItem,
   ExpenseCatalogType,
@@ -79,19 +76,6 @@ export class ExpenseCatalogService {
         (error) => subscriber.error(error),
       );
     });
-  }
-
-  async ensureDefaultsForUser(userId: string): Promise<void> {
-    const catalogRef = collection(this.firestore, `users/${userId}/expenseCatalog`);
-    const existing = await getDocs(query(catalogRef, limit(1)));
-
-    if (!existing.empty) {
-      return;
-    }
-
-    for (const item of DEFAULT_EXPENSE_CATALOG) {
-      await this.addItem(userId, item);
-    }
   }
 
   async addItem(userId: string, input: ExpenseCatalogInput): Promise<string> {
