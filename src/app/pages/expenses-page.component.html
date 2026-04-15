@@ -1,0 +1,102 @@
+<section class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Pantalla de gastos</p>
+      <h1>Registra lo que sale</h1>
+      <p class="copy">
+        Organiza tus compras y compromisos para entender hacia donde se mueve tu dinero.
+      </p>
+    </div>
+    <div class="highlight-card">
+      <span>Total del formulario</span>
+      <strong>{{ totalLabel() }}</strong>
+    </div>
+  </header>
+
+  <div class="content-grid">
+    <article class="panel">
+      <h2>Nuevo gasto</h2>
+      <form [formGroup]="expenseForm" (ngSubmit)="addExpense()">
+        <label>
+          <span>Descripcion</span>
+          <input type="text" formControlName="description" placeholder="Ej. Pago de internet" />
+        </label>
+
+        <label>
+          <span>Icono</span>
+          <input type="text" formControlName="icon" placeholder="🧾" maxlength="4" />
+        </label>
+
+        <label>
+          <span>Monto</span>
+          <input type="number" min="0.01" step="0.01" formControlName="amount" />
+        </label>
+
+        <label>
+          <span>Categoria</span>
+          <select formControlName="category">
+            @if (categories$ | async; as categories) {
+              @for (category of categories; track category) {
+                <option [value]="category">{{ category }}</option>
+              }
+            } @else {
+              @for (category of fallbackCategories; track category) {
+                <option [value]="category">{{ category }}</option>
+              }
+            }
+          </select>
+        </label>
+
+        <label>
+          <span>Fecha</span>
+          <input type="date" formControlName="spentAt" />
+        </label>
+
+        <button type="submit" class="primary-button" [disabled]="saving()">
+          {{ saving() ? 'Guardando...' : 'Guardar gasto' }}
+        </button>
+      </form>
+
+      @if (errorMessage()) {
+        <p class="error">{{ errorMessage() }}</p>
+      }
+    </article>
+
+    <article class="panel">
+      <h2>Historial de gastos</h2>
+
+      @if (expenses$ | async; as expenses) {
+        @if (expenses.length) {
+          <ul class="record-list">
+            @for (expense of expenses; track expense.id) {
+              <li>
+                <div class="record-main">
+                  <span class="record-icon">{{ expense.icon }}</span>
+                  <div>
+                  <strong>{{ expense.description }}</strong>
+                  <span>{{ expense.category }} | {{ expense.spentAt | date: 'mediumDate' }}</span>
+                  </div>
+                </div>
+                <div class="record-actions">
+                  <strong>{{ expense.amount | money: preferencesService.currencyCode() }}</strong>
+                  <button
+                    type="button"
+                    class="ghost-button"
+                    [disabled]="removingId() === expense.id"
+                    (click)="removeExpense(expense.id)"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="empty-state">Todavia no hay gastos registrados.</p>
+        }
+      } @else {
+        <p class="empty-state">Cargando gastos...</p>
+      }
+    </article>
+  </div>
+</section>

@@ -1,0 +1,113 @@
+<section class="page">
+  <header class="page-header single">
+    <div>
+      <p class="eyebrow">Categorias de gastos</p>
+      <h1>Tipos personalizados de egreso</h1>
+      <p class="copy">
+        Organiza tus gastos con categorias propias y detecta cuales tienen mayor peso.
+      </p>
+    </div>
+  </header>
+
+  <div class="top-grid">
+    <article class="panel">
+      <h2>Nueva categoria de gasto</h2>
+      <form [formGroup]="categoryForm" (ngSubmit)="addCategory()">
+        <label>
+          <span>Nombre</span>
+          <input type="text" formControlName="name" placeholder="Ej. Educacion" />
+        </label>
+
+        <label>
+          <span>Color</span>
+          <input type="color" formControlName="color" />
+        </label>
+
+        <label>
+          <span>Icono</span>
+          <input type="text" formControlName="icon" placeholder="🛒" maxlength="4" />
+        </label>
+
+        <div class="actions">
+          <button type="submit" class="primary-button" [disabled]="saving()">
+            {{ saving() ? 'Guardando...' : 'Guardar categoria' }}
+          </button>
+          <button type="button" class="ghost-button" (click)="addDefaultCategories()">
+            Cargar sugeridas
+          </button>
+        </div>
+      </form>
+
+      @if (errorMessage()) {
+        <p class="error">{{ errorMessage() }}</p>
+      }
+    </article>
+
+    @if (categories$ | async; as categories) {
+      <article class="panel">
+        <h2>Categorias guardadas</h2>
+        @if (categories.length) {
+          <ul class="chip-list">
+            @for (category of categories; track category.id) {
+              <li>
+                <span class="dot" [style.background]="category.color"></span>
+                <span class="chip-icon">{{ category.icon }}</span>
+                <strong>{{ category.name }}</strong>
+                <button
+                  type="button"
+                  class="chip-action"
+                  [disabled]="removingId() === category.id"
+                  (click)="removeCategory(category.id)"
+                >
+                  Eliminar
+                </button>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="copy">Todavia no has creado categorias personalizadas.</p>
+        }
+      </article>
+    }
+  </div>
+
+  @if (summaries$ | async; as summaries) {
+    @if (summaries.length) {
+      <section class="category-grid">
+        @for (summary of summaries; track summary.category) {
+          <article class="panel category-card">
+            <div class="category-top">
+              <div class="category-label">
+                <span class="dot" [style.background]="summary.color || '#76b4ff'"></span>
+                <span class="chip-icon">{{ summary.icon || '🛒' }}</span>
+                <strong>{{ summary.category }}</strong>
+              </div>
+              <span>{{ summary.share | percent: '1.0-0' }}</span>
+            </div>
+
+            <h2>{{ summary.total | money: preferencesService.currencyCode() }}</h2>
+            <p>{{ summary.count }} movimientos registrados</p>
+
+            <div class="progress-track">
+              <div
+                class="progress-bar"
+                [style.width.%]="summary.share * 100"
+                [style.background]="summary.color || '#76b4ff'"
+              ></div>
+            </div>
+          </article>
+        }
+      </section>
+    } @else {
+      <article class="panel empty-panel">
+        <h2>Sin categorias registradas</h2>
+        <p class="copy">Agrega categorias o gastos para ver el resumen.</p>
+      </article>
+    }
+  } @else {
+    <article class="panel empty-panel">
+      <h2>Cargando categorias</h2>
+      <p class="copy">Obteniendo informacion.</p>
+    </article>
+  }
+</section>

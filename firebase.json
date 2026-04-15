@@ -36,5 +36,14 @@
         "destination": "/index.html"
       }
     ]
+  },
+  "auth": {
+    "providers": {
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Ingresos y Gastos",
+        "supportEmail": "anosbel@gmail.com"
+      }
+    }
   }
 }

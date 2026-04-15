@@ -1,89 +1,127 @@
-<section class="dashboard">
-  <header class="hero">
+<section class="page">
+  <header class="page-header">
     <div>
-      <p class="eyebrow">Ingresos y Gastos</p>
-      <h1>Panel personal de gastos</h1>
+      <p class="eyebrow">Dashboard</p>
+      <h1>Resumen financiero</h1>
       <p class="copy">
-        Cada usuario trabaja sobre su propia coleccion en Firestore. La base esta lista para
-        extenderse a presupuestos compartidos.
+        Revisa ingresos y gastos en un solo lugar con filtros rapidos por periodo.
       </p>
     </div>
-
-    <button type="button" class="secondary-button" (click)="logout()">Cerrar sesion</button>
+    <div class="highlight-card">
+      <span>Periodo activo</span>
+      <strong>{{ filterLabel() }}</strong>
+    </div>
   </header>
 
-  <div class="grid">
-    <article class="panel form-panel">
-      <h2>Nuevo gasto</h2>
-      <form [formGroup]="expenseForm" (ngSubmit)="addExpense()">
-        <label>
-          <span>Descripcion</span>
-          <input type="text" formControlName="description" placeholder="Ej. Supermercado semanal" />
-        </label>
-
-        <label>
-          <span>Monto</span>
-          <input type="number" min="0.01" step="0.01" formControlName="amount" />
-          <small>Total actual: {{ totalLabel() }}</small>
-        </label>
-
-        <label>
-          <span>Categoria</span>
-          <select formControlName="category">
-            @for (category of categories; track category) {
-              <option [value]="category">{{ category }}</option>
-            }
-          </select>
-        </label>
-
-        <label>
-          <span>Fecha</span>
-          <input type="date" formControlName="spentAt" />
-        </label>
-
-        <button type="submit" class="primary-button" [disabled]="saving()">
-          {{ saving() ? 'Guardando...' : 'Guardar gasto' }}
+  <section class="panel filter-panel">
+    <div class="filter-row">
+      @for (filter of filters; track filter.key) {
+        <button
+          type="button"
+          class="filter-button"
+          [class.active]="activeFilter() === filter.key"
+          (click)="setFilter(filter.key)"
+        >
+          {{ filter.label }}
         </button>
-      </form>
-
-      @if (errorMessage()) {
-        <p class="error">{{ errorMessage() }}</p>
       }
-    </article>
+    </div>
+  </section>
 
-    <article class="panel list-panel">
-      <h2>Historial</h2>
+  @if (!preferencesService.hasConfiguredCurrency()) {
+    <section class="panel currency-panel">
+      <div>
+        <h2>Elige tu moneda</h2>
+        <p class="copy">Configura la moneda principal para usarla desde el inicio en toda la app.</p>
+      </div>
+      <div class="currency-actions">
+        <select [value]="selectedCurrencyCode()" (change)="selectedCurrencyCode.set($any($event.target).value)">
+          @for (currency of currencyCatalog; track currency.code) {
+            <option [value]="currency.code">{{ currency.code }} | {{ currency.name }}</option>
+          }
+        </select>
+        <button type="button" class="primary-button" (click)="saveCurrency()">Guardar moneda</button>
+      </div>
+    </section>
+  }
 
-      @if (expenses$ | async; as expenses) {
-        @if (expenses.length) {
-          <ul class="expense-list">
-            @for (expense of expenses; track expense.id) {
+  @if (summary$ | async; as summary) {
+    <section class="stats-grid">
+      <article class="panel stat-card income">
+        <span>Ingresos</span>
+        <strong>{{ summary.incomeTotal | money: preferencesService.currencyCode() }}</strong>
+      </article>
+
+      <article class="panel stat-card expense">
+        <span>Gastos</span>
+        <strong>{{ summary.expenseTotal | money: preferencesService.currencyCode() }}</strong>
+      </article>
+
+      <article class="panel stat-card balance">
+        <span>Balance</span>
+        <strong>{{ summary.balance | money: preferencesService.currencyCode() }}</strong>
+      </article>
+
+      <article class="panel stat-card neutral">
+        <span>Movimientos</span>
+        <strong>{{ summary.movementCount }}</strong>
+      </article>
+    </section>
+
+    <section class="dashboard-grid">
+      <article class="panel">
+        <h2>Ultimos movimientos</h2>
+
+        @if (movements(summary).length) {
+          <ul class="record-list">
+            @for (movement of movements(summary); track movement.kind + movement.id) {
               <li>
-                <div>
-                  <strong>{{ expense.description }}</strong>
-                  <span>{{ expense.category }} · {{ expense.spentAt | date: 'mediumDate' }}</span>
+                <div class="record-main">
+                  <span class="record-icon">{{ movement.icon }}</span>
+                  <div>
+                    <strong>{{ movement.title }}</strong>
+                    <span>{{ movement.category }} | {{ movement.date | date: 'mediumDate' }}</span>
+                  </div>
                 </div>
 
-                <div class="expense-actions">
-                  <strong>{{ expense.amount | currency: 'GTQ' : 'symbol' : '1.2-2' }}</strong>
-                  <button
-                    type="button"
-                    class="danger-button"
-                    [disabled]="removingId() === expense.id"
-                    (click)="removeExpense(expense.id)"
-                  >
-                    Eliminar
-                  </button>
+                <div class="record-actions">
+                  <strong [class.income-text]="movement.kind === 'income'" [class.expense-text]="movement.kind === 'expense'">
+                    {{ movement.amount | money: preferencesService.currencyCode() }}
+                  </strong>
+                  <span class="badge" [class.income-badge]="movement.kind === 'income'" [class.expense-badge]="movement.kind === 'expense'">
+                    {{ movement.kind === 'income' ? 'Ingreso' : 'Gasto' }}
+                  </span>
                 </div>
               </li>
             }
           </ul>
         } @else {
-          <p class="empty-state">Todavia no hay gastos registrados para este usuario.</p>
+          <p class="empty-state">No hay movimientos para este periodo.</p>
         }
-      } @else {
-        <p class="empty-state">Cargando gastos...</p>
-      }
+      </article>
+
+      <article class="panel summary-panel">
+        <h2>Lectura rapida</h2>
+        <div class="insight-card">
+          <span>Ahorro neto</span>
+          <strong>{{ summary.balance | money: preferencesService.currencyCode() }}</strong>
+        </div>
+        <div class="insight-card">
+          <span>Relacion ingreso/gasto</span>
+          <strong>
+            {{
+              summary.expenseTotal
+                ? (summary.incomeTotal / summary.expenseTotal | number: '1.1-2') + 'x'
+                : 'Sin gastos'
+            }}
+          </strong>
+        </div>
+      </article>
+    </section>
+  } @else {
+    <article class="panel">
+      <h2>Cargando dashboard</h2>
+      <p class="copy">Obteniendo ingresos y gastos.</p>
     </article>
-  </div>
+  }
 </section>

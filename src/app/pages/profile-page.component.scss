@@ -1,0 +1,63 @@
+@use './shared-page';
+
+.single {
+  margin-bottom: 1.5rem;
+}
+
+.profile-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(18rem, 0.9fr);
+  gap: 1.5rem;
+}
+
+.profile-card {
+  display: grid;
+  grid-template-columns: 10rem 1fr;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.profile-card img {
+  width: 10rem;
+  height: 10rem;
+  object-fit: cover;
+  border-radius: 2rem;
+  background: #dbeeff;
+}
+
+.profile-info p {
+  margin: 0.35rem 0 0;
+  color: var(--muted-text);
+}
+
+dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0 0;
+}
+
+dt {
+  font-size: 0.85rem;
+  color: var(--muted-text);
+}
+
+dd {
+  margin: 0.3rem 0 0;
+  color: var(--text-color);
+  word-break: break-word;
+}
+
+.settings-card {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+@media (max-width: 800px) {
+  .profile-layout,
+  .profile-card,
+  dl {
+    grid-template-columns: 1fr;
+  }
+}

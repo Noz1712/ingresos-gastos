@@ -2,7 +2,7 @@ export const environment = {
   production: false,
   firebase: {
     apiKey: 'AIzaSyCs2vQwhuAwHliQSv_zrXJmYEVvvwKFvBo',
-    authDomain: 'ingresos-y-gastos-888d2.firebaseapp.com',
+    authDomain: 'ingresos-y-gastos-888d2.web.app',
     projectId: 'ingresos-y-gastos-888d2',
     storageBucket: 'ingresos-y-gastos-888d2.firebasestorage.app',
     messagingSenderId: '1028885325631',

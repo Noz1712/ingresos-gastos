@@ -1,10 +1,10 @@
 <section class="login-page">
   <div class="login-card">
-    <p class="eyebrow">PWA Angular + Firebase</p>
-    <h1>Controla tus gastos desde cualquier dispositivo.</h1>
+    <p class="eyebrow">Control financiero personal</p>
+    <h1>Tu dinero, claro y ordenado en azul pastel.</h1>
     <p class="copy">
-      Autenticacion por usuario, datos en Firestore y una base preparada para ampliar a equipos o
-      roles.
+      Inicia sesion para administrar ingresos, gastos, tu perfil y la informacion general de la
+      aplicacion desde una sola experiencia.
     </p>
 
     <button type="button" class="primary-button" (click)="signIn()" [disabled]="loading()">
@@ -16,8 +16,8 @@
     }
 
     <div class="notes">
-      <p>Configura tus credenciales Firebase en <code>src/environments/environment.ts</code>.</p>
-      <a routerLink="/">Ir al dashboard</a>
+      <p>Acceso multiusuario con sincronizacion de datos entre tus dispositivos.</p>
+      <a routerLink="/dashboard">Ir a la aplicacion</a>
     </div>
   </div>
 </section>

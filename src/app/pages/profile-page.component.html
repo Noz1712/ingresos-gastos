@@ -1,0 +1,50 @@
+<section class="page">
+  <header class="page-header single">
+    <div>
+      <p class="eyebrow">Pantalla de perfil</p>
+      <h1>Tu cuenta</h1>
+      <p class="copy">Consulta la informacion principal del usuario autenticado.</p>
+    </div>
+  </header>
+
+  @if (user$ | async; as user) {
+    <div class="profile-layout">
+      <article class="profile-card panel">
+        <img [src]="user.photoURL || 'https://placehold.co/160x160/e2efff/6c8fbd?text=IG'" [alt]="user.displayName || 'Usuario'" />
+        <div class="profile-info">
+          <h2>{{ user.displayName || 'Usuario sin nombre' }}</h2>
+          <p>{{ user.email }}</p>
+
+          <dl>
+            <div>
+              <dt>UID</dt>
+              <dd>{{ user.uid }}</dd>
+            </div>
+            <div>
+              <dt>Proveedor</dt>
+              <dd>{{ user.providerData[0]?.providerId || 'google.com' }}</dd>
+            </div>
+            <div>
+              <dt>Email verificado</dt>
+              <dd>{{ user.emailVerified ? 'Si' : 'No' }}</dd>
+            </div>
+          </dl>
+        </div>
+      </article>
+
+      <article class="panel settings-card">
+        <h2>Moneda principal</h2>
+        <p class="copy">Selecciona la moneda que deseas usar en el dashboard, ingresos y gastos.</p>
+        <label>
+          <span>Moneda</span>
+          <select [value]="selectedCurrencyCode()" (change)="selectedCurrencyCode.set($any($event.target).value)">
+            @for (currency of currencies; track currency.code) {
+              <option [value]="currency.code">{{ currency.code }} | {{ currency.name }}</option>
+            }
+          </select>
+        </label>
+        <button type="button" class="primary-button" (click)="saveCurrency()">Guardar moneda</button>
+      </article>
+    </div>
+  }
+</section>

@@ -1,15 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  Firestore,
-  onSnapshot,
-  orderBy,
-  query,
-  serverTimestamp,
-} from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp } from 'firebase/firestore';
 import { Observable } from 'rxjs';
 import { FIREBASE_FIRESTORE } from '../firebase.tokens';
 import { Expense, ExpenseInput } from '../models/expense.model';
@@ -39,6 +29,7 @@ export class ExpenseService {
                 id: snapshotDoc.id,
                 userId: expense.userId,
                 description: expense.description,
+                icon: expense.icon || '🧾',
                 amount: expense.amount,
                 category: expense.category,
                 spentAt: expense.spentAt,
@@ -56,6 +47,7 @@ export class ExpenseService {
     const expensesRef = collection(this.firestore, `users/${userId}/expenses`);
     await addDoc(expensesRef, {
       ...expense,
+      icon: expense.icon || '🧾',
       userId,
       createdAt: serverTimestamp(),
     });

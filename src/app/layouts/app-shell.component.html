@@ -1,0 +1,37 @@
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">IG</div>
+      <div>
+        <strong>Ingresos y Gastos</strong>
+        <p>Finanzas personales</p>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
+      <a routerLink="/ingresos" routerLinkActive="active">Ingresos</a>
+      <a routerLink="/categorias-ingresos" routerLinkActive="active">Categorias ingresos</a>
+      <a routerLink="/gastos" routerLinkActive="active">Gastos</a>
+      <a routerLink="/categorias-gastos" routerLinkActive="active">Categorias gastos</a>
+      <a routerLink="/acerca" routerLinkActive="active">Acerca</a>
+      <a routerLink="/perfil" routerLinkActive="active">Perfil</a>
+    </nav>
+
+    @if (user$ | async; as user) {
+      <section class="user-card">
+        <img [src]="user.photoURL || 'https://placehold.co/96x96/e2efff/6c8fbd?text=IG'" [alt]="user.displayName || 'Usuario'" />
+        <div>
+          <strong>{{ user.displayName || 'Usuario' }}</strong>
+          <p>{{ user.email }}</p>
+        </div>
+      </section>
+    }
+
+    <button type="button" class="logout-button" (click)="logout()">Cerrar sesion</button>
+  </aside>
+
+  <main class="content">
+    <router-outlet />
+  </main>
+</div>

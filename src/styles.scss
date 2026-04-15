@@ -2,13 +2,21 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  font-family: 'Segoe UI', sans-serif;
+  font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
 }
 
 body {
   min-height: 100vh;
+  background: #eef6ff;
+  color: #2a4d75;
 }
 
 * {
   box-sizing: border-box;
+}
+
+:root {
+  --primary-strong: #3c6f9f;
+  --text-color: #2d5179;
+  --muted-text: #6c89aa;
 }

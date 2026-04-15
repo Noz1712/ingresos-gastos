@@ -1,113 +1,167 @@
-import { AsyncPipe, CurrencyPipe, DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
-import { EMPTY, firstValueFrom, Observable, switchMap } from 'rxjs';
-import { Expense, ExpenseCategory } from '../models/expense.model';
+import { AsyncPipe, DatePipe, DecimalPipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { toObservable } from '@angular/core/rxjs-interop';
+import { combineLatest, EMPTY, map, Observable, switchMap } from 'rxjs';
+import { Expense } from '../models/expense.model';
+import { Income } from '../models/income.model';
+import { CURRENCY_CATALOG } from '../models/currency.model';
+import { MoneyPipe } from '../pipes/money.pipe';
 import { AuthService } from '../services/auth.service';
 import { ExpenseService } from '../services/expense.service';
+import { IncomeService } from '../services/income.service';
+import { UserPreferencesService } from '../services/user-preferences.service';
+
+type DateFilter = 'today' | 'week' | 'month' | 'last30' | 'all';
+
+interface DashboardSummary {
+  incomes: Income[];
+  expenses: Expense[];
+  incomeTotal: number;
+  expenseTotal: number;
+  balance: number;
+  movementCount: number;
+}
+
+type DashboardMovement =
+  | { kind: 'income'; date: string; amount: number; title: string; category: string; icon: string; id: string }
+  | { kind: 'expense'; date: string; amount: number; title: string; category: string; icon: string; id: string };
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [AsyncPipe, CurrencyPipe, DatePipe, ReactiveFormsModule],
+  imports: [AsyncPipe, DatePipe, DecimalPipe, MoneyPipe],
   templateUrl: './dashboard-page.component.html',
   styleUrl: './dashboard-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DashboardPageComponent {
-  private readonly fb = inject(FormBuilder);
   private readonly authService = inject(AuthService);
+  private readonly incomeService = inject(IncomeService);
   private readonly expenseService = inject(ExpenseService);
-  private readonly router = inject(Router);
+  protected readonly preferencesService = inject(UserPreferencesService);
 
-  protected readonly categories: ExpenseCategory[] = [
-    'Alimentacion',
-    'Transporte',
-    'Hogar',
-    'Salud',
-    'Entretenimiento',
-    'Otros',
+  protected readonly activeFilter = signal<DateFilter>('month');
+  protected readonly selectedCurrencyCode = signal(this.preferencesService.currencyCode());
+  protected readonly currencyCatalog = CURRENCY_CATALOG;
+  protected readonly filters: Array<{ key: DateFilter; label: string }> = [
+    { key: 'today', label: 'Hoy' },
+    { key: 'week', label: 'Esta semana' },
+    { key: 'month', label: 'Este mes' },
+    { key: 'last30', label: 'Ultimos 30 dias' },
+    { key: 'all', label: 'Todo' },
   ];
-  protected readonly saving = signal(false);
-  protected readonly removingId = signal('');
-  protected readonly errorMessage = signal('');
 
-  protected readonly expenseForm = this.fb.nonNullable.group({
-    description: ['', [Validators.required, Validators.minLength(3)]],
-    amount: [0, [Validators.required, Validators.min(0.01)]],
-    category: ['Alimentacion' as ExpenseCategory, [Validators.required]],
-    spentAt: [new Date().toISOString().slice(0, 10), [Validators.required]],
-  });
-
-  protected readonly user$ = this.authService.user$;
-  protected readonly expenses$ = this.user$.pipe(
-    switchMap((user): Observable<Expense[]> => {
+  protected readonly summary$ = this.authService.user$.pipe(
+    switchMap((user): Observable<DashboardSummary> => {
       if (!user) {
         return EMPTY;
       }
 
-      return this.expenseService.expensesForUser(user.uid);
+      return combineLatest([
+        toObservable(this.activeFilter),
+        this.incomeService.incomesForUser(user.uid),
+        this.expenseService.expensesForUser(user.uid),
+      ]).pipe(
+        map(([filter, incomes, expenses]) => {
+          const { start, end } = this.getRange(filter);
+          const filteredIncomes = incomes.filter((item) => this.inRange(item.receivedAt, start, end));
+          const filteredExpenses = expenses.filter((item) => this.inRange(item.spentAt, start, end));
+          const incomeTotal = filteredIncomes.reduce((sum, item) => sum + item.amount, 0);
+          const expenseTotal = filteredExpenses.reduce((sum, item) => sum + item.amount, 0);
+
+          return {
+            incomes: filteredIncomes,
+            expenses: filteredExpenses,
+            incomeTotal,
+            expenseTotal,
+            balance: incomeTotal - expenseTotal,
+            movementCount: filteredIncomes.length + filteredExpenses.length,
+          };
+        }),
+      );
     }),
   );
 
-  protected readonly totalLabel = computed(() => {
-    const amount = this.expenseForm.controls.amount.value;
-    return new Intl.NumberFormat('es-GT', {
-      style: 'currency',
-      currency: 'GTQ',
-      maximumFractionDigits: 2,
-    }).format(Number(amount || 0));
-  });
+  protected readonly filterLabel = computed(
+    () => this.filters.find((filter) => filter.key === this.activeFilter())?.label ?? 'Este mes',
+  );
 
-  protected async addExpense(): Promise<void> {
-    const user = await this.getCurrentUser();
-    if (!user || this.expenseForm.invalid) {
-      this.expenseForm.markAllAsTouched();
-      return;
-    }
-
-    this.saving.set(true);
-    this.errorMessage.set('');
-
-    try {
-      await this.expenseService.addExpense(user.uid, this.expenseForm.getRawValue());
-      this.expenseForm.patchValue({
-        description: '',
-        amount: 0,
-        category: 'Alimentacion',
-        spentAt: new Date().toISOString().slice(0, 10),
-      });
-    } catch {
-      this.errorMessage.set('No fue posible guardar el gasto.');
-    } finally {
-      this.saving.set(false);
-    }
+  constructor() {
+    effect(() => {
+      this.selectedCurrencyCode.set(this.preferencesService.currencyCode());
+    });
   }
 
-  protected async removeExpense(expenseId: string): Promise<void> {
-    const user = await this.getCurrentUser();
-    if (!user) {
-      return;
-    }
-
-    this.removingId.set(expenseId);
-    this.errorMessage.set('');
-
-    try {
-      await this.expenseService.deleteExpense(user.uid, expenseId);
-    } catch {
-      this.errorMessage.set('No fue posible eliminar el gasto.');
-    } finally {
-      this.removingId.set('');
-    }
+  protected setFilter(filter: DateFilter): void {
+    this.activeFilter.set(filter);
   }
 
-  protected async logout(): Promise<void> {
-    await this.authService.signOut();
-    await this.router.navigateByUrl('/login');
+  protected async saveCurrency(): Promise<void> {
+    await this.preferencesService.saveCurrency(this.selectedCurrencyCode());
   }
 
-  private getCurrentUser(): Promise<{ uid: string } | null> {
-    return firstValueFrom(this.user$).then((user) => (user ? { uid: user.uid } : null));
+  protected movements(summary: DashboardSummary): DashboardMovement[] {
+    return [
+      ...summary.incomes.map((item) => ({
+        kind: 'income' as const,
+        id: item.id,
+        date: item.receivedAt,
+        amount: item.amount,
+        title: item.description,
+        category: item.category,
+        icon: item.icon,
+      })),
+      ...summary.expenses.map((item) => ({
+        kind: 'expense' as const,
+        id: item.id,
+        date: item.spentAt,
+        amount: item.amount,
+        title: item.description,
+        category: item.category,
+        icon: item.icon,
+      })),
+    ].sort((left, right) => right.date.localeCompare(left.date));
+  }
+
+  private getRange(filter: DateFilter): { start: Date | null; end: Date | null } {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+    if (filter === 'today') {
+      return { start: todayStart, end: todayEnd };
+    }
+
+    if (filter === 'week') {
+      const day = todayStart.getDay();
+      const offset = day === 0 ? 6 : day - 1;
+      const weekStart = new Date(todayStart);
+      weekStart.setDate(todayStart.getDate() - offset);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 7);
+      return { start: weekStart, end: weekEnd };
+    }
+
+    if (filter === 'month') {
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      return { start: monthStart, end: monthEnd };
+    }
+
+    if (filter === 'last30') {
+      const start = new Date(todayStart);
+      start.setDate(start.getDate() - 29);
+      return { start, end: todayEnd };
+    }
+
+    return { start: null, end: null };
+  }
+
+  private inRange(value: string, start: Date | null, end: Date | null): boolean {
+    if (!start || !end) {
+      return true;
+    }
+
+    const date = new Date(`${value}T00:00:00`);
+    return date >= start && date < end;
   }
 }
