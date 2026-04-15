@@ -37,9 +37,11 @@
         <p class="copy">Selecciona la moneda que deseas usar en el dashboard, ingresos y gastos.</p>
         <label>
           <span>Moneda</span>
-          <select [value]="selectedCurrencyCode()" (change)="selectedCurrencyCode.set($any($event.target).value)">
+          <select [value]="selectedCurrencyCode()" (change)="onCurrencyChange($any($event.target).value)">
             @for (currency of currencies; track currency.code) {
-              <option [value]="currency.code">{{ currency.code }} | {{ currency.name }}</option>
+              <option [value]="currency.code" [selected]="currency.code === selectedCurrencyCode()">
+                {{ currency.code }} | {{ currency.name }}
+              </option>
             }
           </select>
         </label>
@@ -52,7 +54,7 @@
           Borra todos tus datos (ingresos, gastos, catalogos, pendientes y configuracion) para comenzar de cero.
         </p>
         <button type="button" class="danger-button" [disabled]="resetInProgress()" (click)="resetAppData()">
-          {{ resetInProgress() ? 'Reiniciando...' : 'Borrar todo e iniciar de 0' }}
+          {{ resetInProgress() ? 'Reiniciando...' : 'Eliminar todos los datos' }}
         </button>
         @if (resetSuccessMessage()) {
           <p class="success">{{ resetSuccessMessage() }}</p>

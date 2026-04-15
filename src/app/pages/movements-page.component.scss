@@ -76,6 +76,37 @@
   padding: 1rem 1.1rem;
 }
 
+.list-toolbar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(9rem, 1fr)) auto;
+  gap: 0.6rem;
+  align-items: end;
+}
+
+.list-toolbar label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.list-toolbar span {
+  color: var(--muted-text);
+  font-size: 0.82rem;
+}
+
+.list-toolbar select,
+.list-toolbar input {
+  border: 1px solid #cfe2f6;
+  border-radius: 0.85rem;
+  padding: 0.6rem 0.75rem;
+  background: #fbfdff;
+  color: var(--text-color);
+}
+
+.export-button {
+  white-space: nowrap;
+  padding: 0.6rem 0.9rem;
+}
+
 .compact-record-list {
   margin-top: 0.7rem;
   max-height: 22rem;
@@ -90,6 +121,20 @@
 
 .compact-record-item .record-main {
   gap: 0.55rem;
+}
+
+.movement-lines {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.movement-title {
+  line-height: 1.2;
+}
+
+.movement-meta {
+  display: block;
+  line-height: 1.2;
 }
 
 .compact-record-item .record-icon {
@@ -109,6 +154,14 @@
   white-space: nowrap;
 }
 
+.income-amount {
+  color: #2f7f59;
+}
+
+.expense-amount {
+  color: #a24a68;
+}
+
 .compact-record-item .badge {
   font-size: 0.78rem;
 }
@@ -119,6 +172,15 @@
 }
 
 @media (max-width: 900px) {
+  .list-toolbar {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .export-button {
+    width: 100%;
+  }
+
   .compact-record-list {
     max-height: 18rem;
   }

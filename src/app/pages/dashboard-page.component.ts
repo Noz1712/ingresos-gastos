@@ -1,10 +1,12 @@
 import { AsyncPipe, DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { EMPTY, map, Observable, switchMap } from 'rxjs';
+import { DateInputComponent } from '../components/date-input.component';
 import { MoneyPipe } from '../pipes/money.pipe';
 import { AuthService } from '../services/auth.service';
 import { ExpenseService } from '../services/expense.service';
 import { UserPreferencesService } from '../services/user-preferences.service';
+import { parseIsoDateAsLocalDate, toIsoDateKey } from '../utils/date-utils';
 
 type ExpenseSlice = {
   category: string;
@@ -30,7 +32,7 @@ type DashboardState = {
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [AsyncPipe, DatePipe, MoneyPipe],
+  imports: [AsyncPipe, DatePipe, MoneyPipe, DateInputComponent],
   templateUrl: './dashboard-page.component.html',
   styleUrl: './dashboard-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -40,6 +42,9 @@ export class DashboardPageComponent {
   private readonly expenseService = inject(ExpenseService);
   protected readonly preferencesService = inject(UserPreferencesService);
   protected readonly selectedCategory = signal('');
+  protected readonly dateFilterPreset = signal<'currentMonth' | 'last3Months' | 'custom'>('currentMonth');
+  protected readonly filterStartDate = signal(this.getCurrentMonthRange().startDate);
+  protected readonly filterEndDate = signal(this.getCurrentMonthRange().endDate);
 
   protected readonly dashboard$ = this.authService.user$.pipe(
     switchMap((user): Observable<DashboardState> => {
@@ -53,6 +58,47 @@ export class DashboardPageComponent {
 
   protected setSelectedCategory(category: string): void {
     this.selectedCategory.set(category);
+  }
+
+  protected setDateFilterPreset(rawPreset: string): void {
+    const preset = this.normalizePreset(rawPreset);
+    this.dateFilterPreset.set(preset);
+
+    if (preset === 'currentMonth') {
+      const range = this.getCurrentMonthRange();
+      this.filterStartDate.set(range.startDate);
+      this.filterEndDate.set(range.endDate);
+      return;
+    }
+
+    if (preset === 'last3Months') {
+      const range = this.getLastThreeMonthsRange();
+      this.filterStartDate.set(range.startDate);
+      this.filterEndDate.set(range.endDate);
+    }
+  }
+
+  protected setFilterStartDate(value: string): void {
+    this.filterStartDate.set(value);
+    this.dateFilterPreset.set('custom');
+  }
+
+  protected setFilterEndDate(value: string): void {
+    this.filterEndDate.set(value);
+    this.dateFilterPreset.set('custom');
+  }
+
+  protected activeRangeLabel(): string {
+    const preset = this.dateFilterPreset();
+    if (preset === 'currentMonth') {
+      return 'Mes actual';
+    }
+
+    if (preset === 'last3Months') {
+      return 'Ultimos 3 meses';
+    }
+
+    return 'Rango personalizado';
   }
 
   protected getSelectedCategorySummary(dashboard: DashboardState): {
@@ -89,11 +135,11 @@ export class DashboardPageComponent {
   }
 
   private buildDashboardState(expenses: Array<{ id: string; description: string; icon: string; amount: number; category: string; spentAt: string }>): DashboardState {
-    const now = new Date();
+    const range = this.getActiveDateRange();
     const monthlyExpenses = expenses
       .filter((expense) => {
-      const spentDate = new Date(`${expense.spentAt}T00:00:00`);
-      return spentDate.getFullYear() === now.getFullYear() && spentDate.getMonth() === now.getMonth();
+      const spentDate = parseIsoDateAsLocalDate(expense.spentAt);
+      return spentDate >= range.start && spentDate <= range.end;
       })
       .sort((left, right) => right.spentAt.localeCompare(left.spentAt));
 
@@ -146,5 +192,44 @@ export class DashboardPageComponent {
     }
 
     return `conic-gradient(${chunks.join(', ')})`;
+  }
+
+  private getActiveDateRange(): { start: Date; end: Date } {
+    const start = parseIsoDateAsLocalDate(this.filterStartDate());
+    const end = parseIsoDateAsLocalDate(this.filterEndDate());
+
+    if (start <= end) {
+      return { start, end };
+    }
+
+    return { start: end, end: start };
+  }
+
+  private getCurrentMonthRange(): { startDate: string; endDate: string } {
+    const today = new Date();
+    return {
+      startDate: toIsoDateKey(new Date(today.getFullYear(), today.getMonth(), 1)),
+      endDate: toIsoDateKey(today),
+    };
+  }
+
+  private getLastThreeMonthsRange(): { startDate: string; endDate: string } {
+    const today = new Date();
+    return {
+      startDate: toIsoDateKey(new Date(today.getFullYear(), today.getMonth() - 2, 1)),
+      endDate: toIsoDateKey(today),
+    };
+  }
+
+  private normalizePreset(rawPreset: string): 'currentMonth' | 'last3Months' | 'custom' {
+    if (rawPreset === 'last3Months') {
+      return 'last3Months';
+    }
+
+    if (rawPreset === 'custom') {
+      return 'custom';
+    }
+
+    return 'currentMonth';
   }
 }

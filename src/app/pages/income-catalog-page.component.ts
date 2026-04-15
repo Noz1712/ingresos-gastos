@@ -2,6 +2,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { EMPTY, firstValueFrom, map, Observable, switchMap } from 'rxjs';
+import { DateInputComponent } from '../components/date-input.component';
 import { CATEGORY_ICON_PRESETS } from '../models/category-icon-presets.model';
 import { CatalogScheduleEntry } from '../models/expense-catalog.model';
 import { DEFAULT_INCOME_CATEGORIES } from '../models/income.model';
@@ -18,7 +19,7 @@ import { UserPreferencesService } from '../services/user-preferences.service';
 
 @Component({
   selector: 'app-income-catalog-page',
-  imports: [AsyncPipe, ReactiveFormsModule, MoneyPipe],
+  imports: [AsyncPipe, ReactiveFormsModule, MoneyPipe, DateInputComponent],
   templateUrl: './income-catalog-page.component.html',
   styleUrl: './income-catalog-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

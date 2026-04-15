@@ -2,6 +2,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { EMPTY, firstValueFrom, map, Observable, switchMap } from 'rxjs';
+import { DateInputComponent } from '../components/date-input.component';
 import { CATEGORY_ICON_PRESETS } from '../models/category-icon-presets.model';
 import { DEFAULT_EXPENSE_CATEGORIES } from '../models/expense.model';
 import { CatalogScheduleEntry } from '../models/expense-catalog.model';
@@ -15,10 +16,11 @@ import { AuthService } from '../services/auth.service';
 import { CategoryService } from '../services/category.service';
 import { ExpenseCatalogService } from '../services/expense-catalog.service';
 import { UserPreferencesService } from '../services/user-preferences.service';
+import { clampDayToMonth } from '../utils/date-utils';
 
 @Component({
   selector: 'app-expense-catalog-page',
-  imports: [AsyncPipe, DatePipe, ReactiveFormsModule, MoneyPipe],
+  imports: [AsyncPipe, DatePipe, ReactiveFormsModule, MoneyPipe, DateInputComponent],
   templateUrl: './expense-catalog-page.component.html',
   styleUrl: './expense-catalog-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -437,8 +439,7 @@ export class ExpenseCatalogPageComponent {
 
     for (let cycle = 0; cycle < maxCycles; cycle += 1) {
       for (const schedule of uniqueSchedules) {
-        const monthLastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
-        const dueDay = Math.min(schedule.day, monthLastDay);
+        const dueDay = clampDayToMonth(currentYear, currentMonth, schedule.day);
         const dueDate = new Date(currentYear, currentMonth, dueDay);
 
         if (dueDate < start) {

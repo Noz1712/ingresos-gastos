@@ -2,6 +2,7 @@ import { AsyncPipe, DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { combineLatest, EMPTY, firstValueFrom, map, Observable, switchMap } from 'rxjs';
+import { DateInputComponent } from '../components/date-input.component';
 import { ExpenseCatalogItem } from '../models/expense-catalog.model';
 import { IncomeCatalogItem } from '../models/income-catalog.model';
 import { PendingExpense } from '../models/pending-expense.model';
@@ -13,6 +14,7 @@ import { IncomeCatalogService } from '../services/income-catalog.service';
 import { IncomeService } from '../services/income.service';
 import { PendingExpenseService } from '../services/pending-expense.service';
 import { UserPreferencesService } from '../services/user-preferences.service';
+import { parseIsoDateAsLocalDate, toIsoDateKey } from '../utils/date-utils';
 
 interface PendingMovement {
   sourceId: string;
@@ -38,7 +40,7 @@ type MovementItem = {
 
 @Component({
   selector: 'app-movements-page',
-  imports: [AsyncPipe, DatePipe, ReactiveFormsModule, MoneyPipe],
+  imports: [AsyncPipe, DatePipe, ReactiveFormsModule, MoneyPipe, DateInputComponent],
   templateUrl: './movements-page.component.html',
   styleUrl: './movements-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -61,6 +63,10 @@ export class MovementsPageComponent {
   protected readonly obligationConfirmAmount = signal(0);
   protected readonly movementProcessingKey = signal('');
   protected readonly movementErrorMessage = signal('');
+  protected readonly exportErrorMessage = signal('');
+  protected readonly movementDateFilterPreset = signal<'currentMonth' | 'last3Months' | 'custom'>('currentMonth');
+  protected readonly movementFilterStartDate = signal(this.getCurrentMonthRange().startDate);
+  protected readonly movementFilterEndDate = signal(this.getCurrentMonthRange().endDate);
 
   protected readonly eventForm = this.fb.nonNullable.group({
     kind: ['expense' as 'expense' | 'income', [Validators.required]],
@@ -141,13 +147,102 @@ export class MovementsPageComponent {
               date: item.spentAt,
             })),
           ]
-            .filter((item) => this.isInCurrentMonth(item.date))
             .sort((left, right) => right.date.localeCompare(left.date))
-            .slice(0, 25);
+            .slice(0, 250);
         }),
       );
     }),
   );
+
+  protected setMovementDateFilterPreset(rawPreset: string): void {
+    const preset = this.normalizePreset(rawPreset);
+    this.movementDateFilterPreset.set(preset);
+
+    if (preset === 'currentMonth') {
+      const range = this.getCurrentMonthRange();
+      this.movementFilterStartDate.set(range.startDate);
+      this.movementFilterEndDate.set(range.endDate);
+      return;
+    }
+
+    if (preset === 'last3Months') {
+      const range = this.getLastThreeMonthsRange();
+      this.movementFilterStartDate.set(range.startDate);
+      this.movementFilterEndDate.set(range.endDate);
+    }
+  }
+
+  protected setMovementFilterStartDate(value: string): void {
+    this.movementFilterStartDate.set(value);
+    this.movementDateFilterPreset.set('custom');
+  }
+
+  protected setMovementFilterEndDate(value: string): void {
+    this.movementFilterEndDate.set(value);
+    this.movementDateFilterPreset.set('custom');
+  }
+
+  protected movementActiveRangeLabel(): string {
+    const preset = this.movementDateFilterPreset();
+    if (preset === 'currentMonth') {
+      return 'Mes actual';
+    }
+
+    if (preset === 'last3Months') {
+      return 'Ultimos 3 meses';
+    }
+
+    return 'Rango personalizado';
+  }
+
+  protected filteredMovements(movements: MovementItem[]): MovementItem[] {
+    const range = this.getMovementActiveDateRange();
+    return movements.filter((item) => {
+      const date = parseIsoDateAsLocalDate(item.date);
+      return date >= range.start && date <= range.end;
+    });
+  }
+
+  protected exportMovementsCsv(movements: MovementItem[]): void {
+    this.exportErrorMessage.set('');
+
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      this.exportErrorMessage.set('No fue posible exportar en este entorno.');
+      return;
+    }
+
+    const filtered = this.filteredMovements(movements);
+    if (!filtered.length) {
+      this.exportErrorMessage.set('No hay movimientos en el rango seleccionado para exportar.');
+      return;
+    }
+
+    const csvLines = [
+      'tipo,fecha,categoria,descripcion,monto',
+      ...filtered.map((movement) => {
+        return [
+          movement.kind === 'income' ? 'Ingreso' : 'Gasto',
+          movement.date,
+          movement.category,
+          movement.title,
+          movement.amount.toFixed(2),
+        ]
+          .map((value) => this.escapeCsv(String(value)))
+          .join(',');
+      }),
+    ];
+
+    const csvContent = csvLines.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    const timestamp = new Date().toISOString().slice(0, 10);
+
+    anchor.href = url;
+    anchor.download = `movimientos-${timestamp}.csv`;
+    anchor.click();
+    window.URL.revokeObjectURL(url);
+  }
 
   protected async saveEvent(): Promise<void> {
     const user = await this.getCurrentUser();
@@ -337,7 +432,7 @@ export class MovementsPageComponent {
         }
 
         const dueDate = new Date(year, month, day);
-        const dueDateKey = this.toDateKey(dueDate);
+        const dueDateKey = toIsoDateKey(dueDate);
         if (item.completedDueDates.includes(dueDateKey)) {
           continue;
         }
@@ -403,7 +498,7 @@ export class MovementsPageComponent {
           }
         }
 
-        const dueDateKey = this.toDateKey(dueDate);
+        const dueDateKey = toIsoDateKey(dueDate);
         const dueDateIso = dueDate.toISOString().slice(0, 10);
         const alreadyRegistered = expenseRegistry.has(`${item.name}|${dueDateIso}`);
 
@@ -444,7 +539,7 @@ export class MovementsPageComponent {
         }
 
         const dueDate = new Date(year, month, day);
-        const dueDateKey = this.toDateKey(dueDate);
+        const dueDateKey = toIsoDateKey(dueDate);
         const dueDateIso = dueDate.toISOString().slice(0, 10);
         const alreadyRegistered = incomeRegistry.has(`${item.name}|${dueDateIso}`);
 
@@ -477,13 +572,6 @@ export class MovementsPageComponent {
     return Array.from(unique.values()).sort((left, right) => left.dueDate.localeCompare(right.dueDate));
   }
 
-  private toDateKey(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
-
   private normalizeSchedules(item: PendingExpense): Array<{ day: number; amount: number }> {
     if (item.paymentSchedules?.length) {
       return [...item.paymentSchedules].sort((a, b) => a.day - b.day);
@@ -512,10 +600,51 @@ export class MovementsPageComponent {
     return [...item.paymentSchedules].sort((a, b) => a.day - b.day);
   }
 
-  private isInCurrentMonth(date: string): boolean {
-    const value = new Date(date);
-    const now = new Date();
-    return value.getFullYear() === now.getFullYear() && value.getMonth() === now.getMonth();
+  private getMovementActiveDateRange(): { start: Date; end: Date } {
+    const start = parseIsoDateAsLocalDate(this.movementFilterStartDate());
+    const end = parseIsoDateAsLocalDate(this.movementFilterEndDate());
+
+    if (start <= end) {
+      return { start, end };
+    }
+
+    return { start: end, end: start };
+  }
+
+  private getCurrentMonthRange(): { startDate: string; endDate: string } {
+    const today = new Date();
+    return {
+      startDate: toIsoDateKey(new Date(today.getFullYear(), today.getMonth(), 1)),
+      endDate: toIsoDateKey(today),
+    };
+  }
+
+  private getLastThreeMonthsRange(): { startDate: string; endDate: string } {
+    const today = new Date();
+    return {
+      startDate: toIsoDateKey(new Date(today.getFullYear(), today.getMonth() - 2, 1)),
+      endDate: toIsoDateKey(today),
+    };
+  }
+
+  private normalizePreset(rawPreset: string): 'currentMonth' | 'last3Months' | 'custom' {
+    if (rawPreset === 'last3Months') {
+      return 'last3Months';
+    }
+
+    if (rawPreset === 'custom') {
+      return 'custom';
+    }
+
+    return 'currentMonth';
+  }
+
+  private escapeCsv(value: string): string {
+    if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+      return `"${value.replace(/"/g, '""')}"`;
+    }
+
+    return value;
   }
 
   private getCurrentUser(): Promise<{ uid: string } | null> {

@@ -2,14 +2,7 @@ import { Routes } from '@angular/router';
 import { authGuard } from './guards/auth.guard';
 import { guestGuard } from './guards/guest.guard';
 import { AppShellComponent } from './layouts/app-shell.component';
-import { DashboardPageComponent } from './pages/dashboard-page.component';
-import { ExpenseCatalogPageComponent } from './pages/expense-catalog-page.component';
-import { ExpenseCategoriesPageComponent } from './pages/expense-categories-page.component';
-import { IncomeCatalogPageComponent } from './pages/income-catalog-page.component';
-import { IncomeCategoriesPageComponent } from './pages/income-categories-page.component';
 import { LoginPageComponent } from './pages/login-page.component';
-import { MovementsPageComponent } from './pages/movements-page.component';
-import { ProfilePageComponent } from './pages/profile-page.component';
 
 export const routes: Routes = [
   {
@@ -29,31 +22,38 @@ export const routes: Routes = [
       },
       {
         path: 'dashboard',
-        component: DashboardPageComponent,
+        loadComponent: () =>
+          import('./pages/dashboard-page.component').then((module) => module.DashboardPageComponent),
       },
       {
         path: 'movimientos',
-        component: MovementsPageComponent,
+        loadComponent: () =>
+          import('./pages/movements-page.component').then((module) => module.MovementsPageComponent),
       },
       {
         path: 'categorias-ingresos',
-        component: IncomeCategoriesPageComponent,
+        loadComponent: () =>
+          import('./pages/income-categories-page.component').then((module) => module.IncomeCategoriesPageComponent),
       },
       {
         path: 'catalogo-ingresos',
-        component: IncomeCatalogPageComponent,
+        loadComponent: () =>
+          import('./pages/income-catalog-page.component').then((module) => module.IncomeCatalogPageComponent),
       },
       {
         path: 'catalogo-gastos',
-        component: ExpenseCatalogPageComponent,
+        loadComponent: () =>
+          import('./pages/expense-catalog-page.component').then((module) => module.ExpenseCatalogPageComponent),
       },
       {
         path: 'categorias-gastos',
-        component: ExpenseCategoriesPageComponent,
+        loadComponent: () =>
+          import('./pages/expense-categories-page.component').then((module) => module.ExpenseCategoriesPageComponent),
       },
       {
         path: 'perfil',
-        component: ProfilePageComponent,
+        loadComponent: () =>
+          import('./pages/profile-page.component').then((module) => module.ProfilePageComponent),
       },
     ],
   },

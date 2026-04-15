@@ -4,6 +4,33 @@
   margin-bottom: 1.4rem;
 }
 
+.date-filters {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(10rem, 1fr));
+  gap: 0.7rem;
+  max-width: 48rem;
+}
+
+.date-filters label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.date-filters span {
+  color: var(--muted-text);
+  font-size: 0.85rem;
+}
+
+.date-filters select,
+.date-filters input {
+  border: 1px solid #cfe2f6;
+  border-radius: 0.85rem;
+  padding: 0.65rem 0.8rem;
+  background: #fbfdff;
+  color: var(--text-color);
+}
+
 .content-grid {
   display: grid;
   grid-template-columns: minmax(20rem, 28rem) 1fr;
@@ -153,6 +180,11 @@
 }
 
 @media (max-width: 900px) {
+  .date-filters {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+  }
+
   .content-grid {
     grid-template-columns: 1fr;
   }

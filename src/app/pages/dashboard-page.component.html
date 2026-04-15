@@ -2,8 +2,29 @@
   <header class="page-header single">
     <div>
       <p class="eyebrow">Dashboard</p>
-      <h1>Distribucion de gastos del mes</h1>
-      <p class="copy">Vista rapida por categoria en formato pastel.</p>
+      <h1>Distribucion de gastos</h1>
+      <p class="copy">Vista rapida por categoria en formato pastel segun el rango seleccionado.</p>
+
+      <div class="date-filters">
+        <label>
+          <span>Periodo</span>
+          <select [value]="dateFilterPreset()" (change)="setDateFilterPreset($any($event.target).value)">
+            <option value="currentMonth">Mes actual</option>
+            <option value="last3Months">Ultimos 3 meses</option>
+            <option value="custom">Personalizado</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Desde</span>
+          <app-date-input [value]="filterStartDate()" (valueChange)="setFilterStartDate($event)" />
+        </label>
+
+        <label>
+          <span>Hasta</span>
+          <app-date-input [value]="filterEndDate()" (valueChange)="setFilterEndDate($event)" />
+        </label>
+      </div>
     </div>
   </header>
 
@@ -17,13 +38,13 @@
             <div class="pie-chart" [style.background]="dashboard.gradient" aria-label="Grafico de pastel de gastos"></div>
             <div class="pie-center">
               <strong>{{ dashboard.total | money: preferencesService.currencyCode() }}</strong>
-              <span>Total del mes</span>
+              <span>Total {{ activeRangeLabel() }}</span>
             </div>
           </div>
 
-          <p class="meta">Movimientos incluidos: {{ dashboard.expenseCount }}</p>
+          <p class="meta">Movimientos incluidos: {{ dashboard.expenseCount }} | {{ activeRangeLabel() }}</p>
         } @else {
-          <p class="empty-state">Todavia no hay gastos registrados este mes.</p>
+          <p class="empty-state">No hay gastos registrados en el rango seleccionado.</p>
         }
       </article>
 
@@ -86,7 +107,7 @@
               }
             </ul>
           } @else {
-            <p class="empty-state">No hay gastos en la categoria seleccionada este mes.</p>
+            <p class="empty-state">No hay gastos en la categoria seleccionada dentro del rango actual.</p>
           }
         } @else {
           <p class="empty-state">Selecciona una categoria para ver su subdashboard.</p>

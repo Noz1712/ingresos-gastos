@@ -1,6 +1,6 @@
 import { AsyncPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
-import { CURRENCY_CATALOG } from '../models/currency.model';
+import { CURRENCY_CATALOG, DEFAULT_CURRENCY } from '../models/currency.model';
 import { AppResetService } from '../services/app-reset.service';
 import { AuthService } from '../services/auth.service';
 import { UserPreferencesService } from '../services/user-preferences.service';
@@ -19,19 +19,29 @@ export class ProfilePageComponent {
   protected readonly user$ = this.authService.user$;
   protected readonly preferencesService = inject(UserPreferencesService);
   protected readonly currencies = CURRENCY_CATALOG;
-  protected readonly selectedCurrencyCode = signal(this.preferencesService.currencyCode());
+  protected readonly selectedCurrencyCode = signal(DEFAULT_CURRENCY.code);
   protected readonly resetInProgress = signal(false);
   protected readonly resetErrorMessage = signal('');
   protected readonly resetSuccessMessage = signal('');
 
   constructor() {
     effect(() => {
-      this.selectedCurrencyCode.set(this.preferencesService.currencyCode());
+      this.selectedCurrencyCode.set(this.normalizeCurrencyCode(this.preferencesService.currencyCode()));
     });
+  }
+
+  protected onCurrencyChange(rawCode: string): void {
+    this.selectedCurrencyCode.set(this.normalizeCurrencyCode(rawCode));
   }
 
   protected async saveCurrency(): Promise<void> {
     await this.preferencesService.saveCurrency(this.selectedCurrencyCode());
+  }
+
+  private normalizeCurrencyCode(rawCode: string): string {
+    const parsed = String(rawCode || '').trim().toUpperCase();
+    const exists = this.currencies.some((currency) => currency.code === parsed);
+    return exists ? parsed : DEFAULT_CURRENCY.code;
   }
 
   protected async resetAppData(): Promise<void> {
