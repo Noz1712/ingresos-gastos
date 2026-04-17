@@ -18,6 +18,7 @@ import {
   PendingExpenseInput,
   PendingPaymentSchedule,
 } from '../models/pending-expense.model';
+import { NotificationService } from './notification.service';
 
 type PendingExpenseDocument = Omit<PendingExpense, 'id' | 'createdAt'> & {
   paymentSchedules?: PendingPaymentSchedule[];
@@ -29,6 +30,7 @@ type PendingExpenseDocument = Omit<PendingExpense, 'id' | 'createdAt'> & {
 })
 export class PendingExpenseService {
   private readonly firestore = inject(FIREBASE_FIRESTORE);
+  private readonly notifications = inject(NotificationService);
 
   itemsForUser(userId: string): Observable<PendingExpense[]> {
     return new Observable((subscriber) => {
@@ -65,34 +67,52 @@ export class PendingExpenseService {
   }
 
   async addItem(userId: string, input: PendingExpenseInput): Promise<void> {
-    const pendingRef = collection(this.firestore, `users/${userId}/pendingExpenses`);
-    const paymentSchedules = [...input.paymentSchedules].sort((a, b) => a.day - b.day);
-    await addDoc(pendingRef, {
-      userId,
-      catalogItemId: input.catalogItemId,
-      name: input.name,
-      icon: input.icon || '🧾',
-      category: input.category,
-      type: input.type,
-      paymentSchedules,
-      amount: Number(paymentSchedules[0]?.amount || input.amount || 0),
-      dueDays: paymentSchedules.map((schedule) => schedule.day),
-      completedDueDates: [],
-      active: input.active,
-      createdAt: serverTimestamp(),
-    });
+    try {
+      const pendingRef = collection(this.firestore, `users/${userId}/pendingExpenses`);
+      const paymentSchedules = [...input.paymentSchedules].sort((a, b) => a.day - b.day);
+      await addDoc(pendingRef, {
+        userId,
+        catalogItemId: input.catalogItemId,
+        name: input.name,
+        icon: input.icon || '🧾',
+        category: input.category,
+        type: input.type,
+        paymentSchedules,
+        amount: Number(paymentSchedules[0]?.amount || input.amount || 0),
+        dueDays: paymentSchedules.map((schedule) => schedule.day),
+        completedDueDates: [],
+        active: input.active,
+        createdAt: serverTimestamp(),
+      });
+      this.notifications.success('Pendiente guardado correctamente.');
+    } catch (error) {
+      this.notifications.error('No se pudo guardar el pendiente.');
+      throw error;
+    }
   }
 
   async markDueDateCompleted(userId: string, pendingId: string, dueDateKey: string): Promise<void> {
-    const pendingRef = doc(this.firestore, `users/${userId}/pendingExpenses/${pendingId}`);
-    await updateDoc(pendingRef, {
-      completedDueDates: arrayUnion(dueDateKey),
-    });
+    try {
+      const pendingRef = doc(this.firestore, `users/${userId}/pendingExpenses/${pendingId}`);
+      await updateDoc(pendingRef, {
+        completedDueDates: arrayUnion(dueDateKey),
+      });
+      this.notifications.success('Pendiente marcado como registrado.');
+    } catch (error) {
+      this.notifications.error('No se pudo registrar el pendiente.');
+      throw error;
+    }
   }
 
   async deleteItem(userId: string, pendingId: string): Promise<void> {
-    const pendingRef = doc(this.firestore, `users/${userId}/pendingExpenses/${pendingId}`);
-    await deleteDoc(pendingRef);
+    try {
+      const pendingRef = doc(this.firestore, `users/${userId}/pendingExpenses/${pendingId}`);
+      await deleteDoc(pendingRef);
+      this.notifications.warning('Pendiente eliminado.');
+    } catch (error) {
+      this.notifications.error('No se pudo eliminar el pendiente.');
+      throw error;
+    }
   }
 
   private normalizeSchedules(pending: PendingExpenseDocument): PendingPaymentSchedule[] {

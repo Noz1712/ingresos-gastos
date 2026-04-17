@@ -17,6 +17,7 @@ import {
   IncomeCatalogItem,
   IncomeCatalogType,
 } from '../models/income-catalog.model';
+import { NotificationService } from './notification.service';
 
 type IncomeCatalogDocument = Omit<IncomeCatalogItem, 'id' | 'createdAt'> & {
   type?: IncomeCatalogType;
@@ -30,6 +31,7 @@ type IncomeCatalogDocument = Omit<IncomeCatalogItem, 'id' | 'createdAt'> & {
 })
 export class IncomeCatalogService {
   private readonly firestore = inject(FIREBASE_FIRESTORE);
+  private readonly notifications = inject(NotificationService);
 
   itemsForUser(userId: string): Observable<IncomeCatalogItem[]> {
     return new Observable((subscriber) => {
@@ -65,42 +67,59 @@ export class IncomeCatalogService {
   }
 
   async addItem(userId: string, input: IncomeCatalogInput): Promise<string> {
-    const catalogRef = collection(this.firestore, `users/${userId}/incomeCatalog`);
-    const created = await addDoc(catalogRef, {
-      userId,
-      type: input.type,
-      category: input.category.trim(),
-      name: input.name.trim(),
-      fixedAmount: Number(input.fixedAmount || 0),
-      color: input.color || '#76b4ff',
-      icon: input.icon || '💰',
-      paymentSchedules: this.normalizeSchedules(input.paymentSchedules),
-      endDate: input.endDate ?? null,
-      isIndefinite: input.isIndefinite !== false,
-      createdAt: serverTimestamp(),
-    });
-
-    return created.id;
+    try {
+      const catalogRef = collection(this.firestore, `users/${userId}/incomeCatalog`);
+      const created = await addDoc(catalogRef, {
+        userId,
+        type: input.type,
+        category: input.category.trim(),
+        name: input.name.trim(),
+        fixedAmount: Number(input.fixedAmount || 0),
+        color: input.color || '#76b4ff',
+        icon: input.icon || '💰',
+        paymentSchedules: this.normalizeSchedules(input.paymentSchedules),
+        endDate: input.endDate ?? null,
+        isIndefinite: input.isIndefinite !== false,
+        createdAt: serverTimestamp(),
+      });
+      this.notifications.success('Ingreso de catalogo guardado correctamente.');
+      return created.id;
+    } catch (error) {
+      this.notifications.error('No se pudo guardar el ingreso de catalogo.');
+      throw error;
+    }
   }
 
   async updateItem(userId: string, itemId: string, input: IncomeCatalogInput): Promise<void> {
-    const itemRef = doc(this.firestore, `users/${userId}/incomeCatalog/${itemId}`);
-    await updateDoc(itemRef, {
-      type: input.type,
-      category: input.category.trim(),
-      name: input.name.trim(),
-      fixedAmount: Number(input.fixedAmount || 0),
-      color: input.color || '#76b4ff',
-      icon: input.icon || '💰',
-      paymentSchedules: this.normalizeSchedules(input.paymentSchedules),
-      endDate: input.endDate ?? null,
-      isIndefinite: input.isIndefinite !== false,
-    });
+    try {
+      const itemRef = doc(this.firestore, `users/${userId}/incomeCatalog/${itemId}`);
+      await updateDoc(itemRef, {
+        type: input.type,
+        category: input.category.trim(),
+        name: input.name.trim(),
+        fixedAmount: Number(input.fixedAmount || 0),
+        color: input.color || '#76b4ff',
+        icon: input.icon || '💰',
+        paymentSchedules: this.normalizeSchedules(input.paymentSchedules),
+        endDate: input.endDate ?? null,
+        isIndefinite: input.isIndefinite !== false,
+      });
+      this.notifications.success('Ingreso de catalogo actualizado correctamente.');
+    } catch (error) {
+      this.notifications.error('No se pudo actualizar el ingreso de catalogo.');
+      throw error;
+    }
   }
 
   async deleteItem(userId: string, itemId: string): Promise<void> {
-    const itemRef = doc(this.firestore, `users/${userId}/incomeCatalog/${itemId}`);
-    await deleteDoc(itemRef);
+    try {
+      const itemRef = doc(this.firestore, `users/${userId}/incomeCatalog/${itemId}`);
+      await deleteDoc(itemRef);
+      this.notifications.warning('Ingreso de catalogo eliminado.');
+    } catch (error) {
+      this.notifications.error('No se pudo eliminar el ingreso de catalogo.');
+      throw error;
+    }
   }
 
   private normalizeSchedules(entries?: Array<{ day: number; amount: number }>): Array<{ day: number; amount: number }> {

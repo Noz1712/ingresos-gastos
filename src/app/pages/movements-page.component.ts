@@ -1,5 +1,5 @@
 import { AsyncPipe, DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { combineLatest, EMPTY, firstValueFrom, map, Observable, switchMap } from 'rxjs';
 import { DateInputComponent } from '../components/date-input.component';
@@ -64,9 +64,18 @@ export class MovementsPageComponent {
   protected readonly movementProcessingKey = signal('');
   protected readonly movementErrorMessage = signal('');
   protected readonly exportErrorMessage = signal('');
-  protected readonly movementDateFilterPreset = signal<'currentMonth' | 'last3Months' | 'custom'>('currentMonth');
+  protected readonly dueDateFilterPreset = signal<'upcoming30Days' | 'upcoming15Days' | 'currentMonth' | 'currentFortnight'>('upcoming30Days');
+  protected readonly movementDateFilterPreset = signal<
+    'upcoming30Days' | 'upcoming15Days' | 'currentFortnight' | 'currentMonth' | 'custom'
+  >('currentMonth');
   protected readonly movementFilterStartDate = signal(this.getCurrentMonthRange().startDate);
   protected readonly movementFilterEndDate = signal(this.getCurrentMonthRange().endDate);
+
+  constructor() {
+    effect(() => {
+      this.dueDateFilterPreset.set(this.preferencesService.dueObligationsFilterPreset());
+    });
+  }
 
   protected readonly eventForm = this.fb.nonNullable.group({
     kind: ['expense' as 'expense' | 'income', [Validators.required]],
@@ -109,9 +118,18 @@ export class MovementsPageComponent {
         this.incomeCatalogService.itemsForUser(user.uid),
         this.incomeService.incomesForUser(user.uid),
       ]).pipe(
-        map(([pendingExpenses, expenseCatalogItems, expenses, incomeCatalogItems, incomes]) =>
-          this.expandPendingForCurrentMonth(pendingExpenses, expenseCatalogItems, expenses, incomeCatalogItems, incomes),
-        ),
+        map(([pendingExpenses, expenseCatalogItems, expenses, incomeCatalogItems, incomes]) => {
+          const range = this.getPendingExpansionRange(pendingExpenses, expenseCatalogItems, incomeCatalogItems);
+          return this.expandPendingForRange(
+            range.start,
+            range.end,
+            pendingExpenses,
+            expenseCatalogItems,
+            expenses,
+            incomeCatalogItems,
+            incomes,
+          );
+        }),
       );
     }),
   );
@@ -158,18 +176,13 @@ export class MovementsPageComponent {
     const preset = this.normalizePreset(rawPreset);
     this.movementDateFilterPreset.set(preset);
 
-    if (preset === 'currentMonth') {
-      const range = this.getCurrentMonthRange();
-      this.movementFilterStartDate.set(range.startDate);
-      this.movementFilterEndDate.set(range.endDate);
+    if (preset === 'custom') {
       return;
     }
 
-    if (preset === 'last3Months') {
-      const range = this.getLastThreeMonthsRange();
-      this.movementFilterStartDate.set(range.startDate);
-      this.movementFilterEndDate.set(range.endDate);
-    }
+    const range = this.getMovementPresetRange(preset);
+    this.movementFilterStartDate.set(toIsoDateKey(range.start));
+    this.movementFilterEndDate.set(toIsoDateKey(range.end));
   }
 
   protected setMovementFilterStartDate(value: string): void {
@@ -182,14 +195,59 @@ export class MovementsPageComponent {
     this.movementDateFilterPreset.set('custom');
   }
 
-  protected movementActiveRangeLabel(): string {
-    const preset = this.movementDateFilterPreset();
+  protected setDueDateFilterPreset(rawPreset: string): void {
+    const preset = this.normalizeDuePreset(rawPreset);
+    this.dueDateFilterPreset.set(preset);
+    void this.preferencesService.saveDueObligationsFilterPreset(preset);
+  }
+
+  protected dueActiveRangeLabel(): string {
+    const preset = this.dueDateFilterPreset();
+    if (preset === 'upcoming15Days') {
+      return 'Próximos 15 días';
+    }
+
+    if (preset === 'currentFortnight') {
+      return 'Quincena actual';
+    }
+
     if (preset === 'currentMonth') {
       return 'Mes actual';
     }
 
-    if (preset === 'last3Months') {
-      return 'Ultimos 3 meses';
+    return 'Próximos 30 días';
+  }
+
+  protected filteredDueObligations(obligations: PendingMovement[]): PendingMovement[] {
+    const range = this.getDueActiveDateRange();
+    const preset = this.dueDateFilterPreset();
+    return obligations.filter((item) => {
+      const dueDate = parseIsoDateAsLocalDate(item.dueDate);
+
+      if (preset === 'currentFortnight' && item.isOverdue) {
+        return true;
+      }
+
+      return dueDate >= range.start && dueDate <= range.end;
+    });
+  }
+
+  protected movementActiveRangeLabel(): string {
+    const preset = this.movementDateFilterPreset();
+    if (preset === 'upcoming30Days') {
+      return 'Próximos 30 días';
+    }
+
+    if (preset === 'upcoming15Days') {
+      return 'Próximos 15 días';
+    }
+
+    if (preset === 'currentFortnight') {
+      return 'Quincena actual';
+    }
+
+    if (preset === 'currentMonth') {
+      return 'Mes actual';
     }
 
     return 'Rango personalizado';
@@ -403,7 +461,9 @@ export class MovementsPageComponent {
     }
   }
 
-  private expandPendingForCurrentMonth(
+  private expandPendingForRange(
+    rangeStart: Date,
+    rangeEnd: Date,
     pendingExpenses: PendingExpense[],
     expenseCatalogItems: ExpenseCatalogItem[],
     expenses: Array<{ description: string; spentAt: string; category: string }>,
@@ -411,10 +471,8 @@ export class MovementsPageComponent {
     incomes: Array<{ description: string; receivedAt: string; category: string }>,
   ): PendingMovement[] {
     const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
-    const today = new Date(year, month, now.getDate());
-    const monthLastDay = new Date(year, month + 1, 0).getDate();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const monthInfos = this.getMonthInfosBetween(rangeStart, rangeEnd);
     const expenseRegistry = new Set(expenses.map((expense) => `${expense.description}|${expense.spentAt}|${expense.category}`));
     const incomeRegistry = new Set(incomes.map((income) => `${income.description}|${income.receivedAt}|${income.category}`));
 
@@ -425,29 +483,41 @@ export class MovementsPageComponent {
         continue;
       }
 
+      const createdAtDate = this.toLocalDateFloor(item.createdAt);
+
       for (const schedule of this.normalizeSchedules(item)) {
-        const day = schedule.day;
-        if (day < 1 || day > monthLastDay) {
-          continue;
-        }
+        for (const monthInfo of monthInfos) {
+          const day = schedule.day;
+          if (day < 1 || day > monthInfo.monthLastDay) {
+            continue;
+          }
 
-        const dueDate = new Date(year, month, day);
-        const dueDateKey = toIsoDateKey(dueDate);
-        if (item.completedDueDates.includes(dueDateKey)) {
-          continue;
-        }
+          const dueDate = new Date(monthInfo.year, monthInfo.month, day);
+          if (dueDate < rangeStart || dueDate > rangeEnd) {
+            continue;
+          }
 
-        obligations.push({
-          sourceId: item.id,
-          kind: 'expense',
-          dueDate: dueDate.toISOString().slice(0, 10),
-          dueDateKey,
-          amount: schedule.amount,
-          category: item.category,
-          icon: item.icon,
-          name: item.name,
-          isOverdue: dueDate < today,
-        });
+          if (this.isBeforeCreationMonth(dueDate, createdAtDate)) {
+            continue;
+          }
+
+          const dueDateKey = toIsoDateKey(dueDate);
+          if (item.completedDueDates.includes(dueDateKey)) {
+            continue;
+          }
+
+          obligations.push({
+            sourceId: item.id,
+            kind: 'expense',
+            dueDate: dueDate.toISOString().slice(0, 10),
+            dueDateKey,
+            amount: schedule.amount,
+            category: item.category,
+            icon: item.icon,
+            name: item.name,
+            isOverdue: dueDate < today,
+          });
+        }
       }
     }
 
@@ -456,67 +526,73 @@ export class MovementsPageComponent {
         continue;
       }
 
+      const createdAtDate = this.toLocalDateFloor(item.createdAt);
+
       const debtMode =
         item.type === 'Deuda'
           ? item.debtPaymentMode ?? 'Recurrente'
           : null;
 
-      if (item.type === 'Deuda' && debtMode === 'PagoUnico') {
-        if (!item.endDate) {
-          continue;
-        }
-
-        const singleDate = new Date(`${item.endDate}T00:00:00`);
-        if (singleDate.getFullYear() !== year || singleDate.getMonth() !== month) {
-          continue;
-        }
+      const singleDate =
+        item.type === 'Deuda' && debtMode === 'PagoUnico' && item.endDate
+          ? parseIsoDateAsLocalDate(item.endDate)
+          : null;
+      if (item.type === 'Deuda' && debtMode === 'PagoUnico' && !singleDate) {
+        continue;
       }
 
-      if (!item.isIndefinite && item.endDate) {
-        const endDate = new Date(item.endDate);
-        if (new Date(year, month, 1) > endDate) {
-          continue;
-        }
-      }
+      const endDate = !item.isIndefinite && item.endDate ? parseIsoDateAsLocalDate(item.endDate) : null;
 
       for (const schedule of this.normalizeExpenseCatalogSchedules(item)) {
-        const day = schedule.day;
-        if (day < 1 || day > monthLastDay) {
-          continue;
-        }
-
-        const dueDate = new Date(year, month, day);
-
-        if (item.type === 'Deuda' && debtMode === 'PagoUnico' && item.endDate) {
-          const singleDate = new Date(`${item.endDate}T00:00:00`);
-          if (
-            dueDate.getFullYear() !== singleDate.getFullYear() ||
-            dueDate.getMonth() !== singleDate.getMonth() ||
-            dueDate.getDate() !== singleDate.getDate()
-          ) {
+        for (const monthInfo of monthInfos) {
+          const day = schedule.day;
+          if (day < 1 || day > monthInfo.monthLastDay) {
             continue;
           }
+
+          const dueDate = new Date(monthInfo.year, monthInfo.month, day);
+          if (dueDate < rangeStart || dueDate > rangeEnd) {
+            continue;
+          }
+
+          if (this.isBeforeCreationMonth(dueDate, createdAtDate)) {
+            continue;
+          }
+
+          if (singleDate) {
+            if (
+              dueDate.getFullYear() !== singleDate.getFullYear() ||
+              dueDate.getMonth() !== singleDate.getMonth() ||
+              dueDate.getDate() !== singleDate.getDate()
+            ) {
+              continue;
+            }
+          }
+
+          if (endDate && dueDate > endDate) {
+            continue;
+          }
+
+          const dueDateKey = toIsoDateKey(dueDate);
+          const dueDateIso = dueDate.toISOString().slice(0, 10);
+          const alreadyRegistered = expenseRegistry.has(`${item.name}|${dueDateIso}|${item.category}`);
+
+          if (alreadyRegistered) {
+            continue;
+          }
+
+          obligations.push({
+            sourceId: `catalog:${item.id}`,
+            kind: 'expense',
+            dueDate: dueDateIso,
+            dueDateKey,
+            amount: schedule.amount,
+            category: item.category,
+            icon: item.icon,
+            name: item.name,
+            isOverdue: dueDate < today,
+          });
         }
-
-        const dueDateKey = toIsoDateKey(dueDate);
-        const dueDateIso = dueDate.toISOString().slice(0, 10);
-        const alreadyRegistered = expenseRegistry.has(`${item.name}|${dueDateIso}|${item.category}`);
-
-        if (alreadyRegistered) {
-          continue;
-        }
-
-        obligations.push({
-          sourceId: `catalog:${item.id}`,
-          kind: 'expense',
-          dueDate: dueDateIso,
-          dueDateKey,
-          amount: schedule.amount,
-          category: item.category,
-          icon: item.icon,
-          name: item.name,
-          isOverdue: dueDate < today,
-        });
       }
     }
 
@@ -525,39 +601,50 @@ export class MovementsPageComponent {
         continue;
       }
 
-      if (!item.isIndefinite && item.endDate) {
-        const endDate = new Date(item.endDate);
-        if (new Date(year, month, 1) > endDate) {
-          continue;
-        }
-      }
+      const createdAtDate = this.toLocalDateFloor(item.createdAt);
+
+      const endDate = !item.isIndefinite && item.endDate ? parseIsoDateAsLocalDate(item.endDate) : null;
 
       for (const schedule of this.normalizeIncomeSchedules(item)) {
-        const day = schedule.day;
-        if (day < 1 || day > monthLastDay) {
-          continue;
+        for (const monthInfo of monthInfos) {
+          const day = schedule.day;
+          if (day < 1 || day > monthInfo.monthLastDay) {
+            continue;
+          }
+
+          const dueDate = new Date(monthInfo.year, monthInfo.month, day);
+          if (dueDate < rangeStart || dueDate > rangeEnd) {
+            continue;
+          }
+
+          if (this.isBeforeCreationMonth(dueDate, createdAtDate)) {
+            continue;
+          }
+
+          if (endDate && dueDate > endDate) {
+            continue;
+          }
+
+          const dueDateKey = toIsoDateKey(dueDate);
+          const dueDateIso = dueDate.toISOString().slice(0, 10);
+          const alreadyRegistered = incomeRegistry.has(`${item.name}|${dueDateIso}|${item.category}`);
+
+          if (alreadyRegistered) {
+            continue;
+          }
+
+          obligations.push({
+            sourceId: item.id,
+            kind: 'income',
+            dueDate: dueDateIso,
+            dueDateKey,
+            amount: schedule.amount,
+            category: item.category,
+            icon: item.icon,
+            name: item.name,
+            isOverdue: dueDate < today,
+          });
         }
-
-        const dueDate = new Date(year, month, day);
-        const dueDateKey = toIsoDateKey(dueDate);
-        const dueDateIso = dueDate.toISOString().slice(0, 10);
-        const alreadyRegistered = incomeRegistry.has(`${item.name}|${dueDateIso}|${item.category}`);
-
-        if (alreadyRegistered) {
-          continue;
-        }
-
-        obligations.push({
-          sourceId: item.id,
-          kind: 'income',
-          dueDate: dueDateIso,
-          dueDateKey,
-          amount: schedule.amount,
-          category: item.category,
-          icon: item.icon,
-          name: item.name,
-          isOverdue: dueDate < today,
-        });
       }
     }
 
@@ -600,6 +687,129 @@ export class MovementsPageComponent {
     return [...item.paymentSchedules].sort((a, b) => a.day - b.day);
   }
 
+  private getDueActiveDateRange(): { start: Date; end: Date } {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const preset = this.dueDateFilterPreset();
+
+    if (preset === 'currentMonth') {
+      return {
+        start: new Date(today.getFullYear(), today.getMonth(), 1),
+        end: new Date(today.getFullYear(), today.getMonth() + 1, 0),
+      };
+    }
+
+    if (preset === 'currentFortnight') {
+      const day = today.getDate();
+
+      if (day >= 15 && day <= 29) {
+        return {
+          start: new Date(today.getFullYear(), today.getMonth(), 15),
+          end: new Date(today.getFullYear(), today.getMonth(), this.clampDayInMonth(today.getFullYear(), today.getMonth(), 29)),
+        };
+      }
+
+      if (day >= 30) {
+        return {
+          start: new Date(today.getFullYear(), today.getMonth(), this.clampDayInMonth(today.getFullYear(), today.getMonth(), 30)),
+          end: new Date(
+            today.getFullYear(),
+            today.getMonth() + 1,
+            this.clampDayInMonth(today.getFullYear(), today.getMonth() + 1, 14),
+          ),
+        };
+      }
+
+      return {
+        start: new Date(
+          today.getFullYear(),
+          today.getMonth() - 1,
+          this.clampDayInMonth(today.getFullYear(), today.getMonth() - 1, 30),
+        ),
+        end: new Date(today.getFullYear(), today.getMonth(), this.clampDayInMonth(today.getFullYear(), today.getMonth(), 14)),
+      };
+    }
+
+    const dayWindow = preset === 'upcoming15Days' ? 15 : 30;
+    return {
+      start: today,
+      end: new Date(today.getFullYear(), today.getMonth(), today.getDate() + dayWindow),
+    };
+  }
+
+  private getPendingExpansionRange(
+    pendingExpenses: PendingExpense[],
+    expenseCatalogItems: ExpenseCatalogItem[],
+    incomeCatalogItems: IncomeCatalogItem[],
+  ): { start: Date; end: Date } {
+    const now = new Date();
+    const createdAtDates = [
+      ...pendingExpenses.map((item) => this.toLocalDateFloor(item.createdAt)),
+      ...expenseCatalogItems.map((item) => this.toLocalDateFloor(item.createdAt)),
+      ...incomeCatalogItems.map((item) => this.toLocalDateFloor(item.createdAt)),
+    ].filter((date) => Number.isFinite(date.getTime()));
+
+    const earliestCreatedAt = createdAtDates.length
+      ? createdAtDates.reduce((earliest, current) => (current < earliest ? current : earliest), createdAtDates[0])
+      : now;
+
+    return {
+      start: new Date(earliestCreatedAt.getFullYear(), earliestCreatedAt.getMonth(), 1),
+      end: new Date(now.getFullYear(), now.getMonth() + 2, 31),
+    };
+  }
+
+  private clampDayInMonth(year: number, month: number, requestedDay: number): number {
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    return Math.max(1, Math.min(requestedDay, lastDay));
+  }
+
+  private toLocalDateFloor(rawValue: string): Date {
+    const raw = String(rawValue || '').trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
+      return parseIsoDateAsLocalDate(raw.slice(0, 10));
+    }
+
+    const parsed = new Date(raw);
+    if (!Number.isFinite(parsed.getTime())) {
+      return new Date(1970, 0, 1);
+    }
+
+    return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+  }
+
+  private isBeforeCreationMonth(dueDate: Date, createdAtDate: Date): boolean {
+    if (dueDate.getFullYear() < createdAtDate.getFullYear()) {
+      return true;
+    }
+
+    if (dueDate.getFullYear() > createdAtDate.getFullYear()) {
+      return false;
+    }
+
+    return dueDate.getMonth() < createdAtDate.getMonth();
+  }
+
+  private getMonthInfosBetween(start: Date, end: Date): Array<{ year: number; month: number; monthLastDay: number }> {
+    const startMonth = new Date(start.getFullYear(), start.getMonth(), 1);
+    const endMonth = new Date(end.getFullYear(), end.getMonth(), 1);
+    const months: Array<{ year: number; month: number; monthLastDay: number }> = [];
+    const cursor = new Date(startMonth);
+
+    while (cursor <= endMonth) {
+      const year = cursor.getFullYear();
+      const month = cursor.getMonth();
+      months.push({
+        year,
+        month,
+        monthLastDay: new Date(year, month + 1, 0).getDate(),
+      });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+
+    return months;
+  }
+
   private getMovementActiveDateRange(): { start: Date; end: Date } {
     const start = parseIsoDateAsLocalDate(this.movementFilterStartDate());
     const end = parseIsoDateAsLocalDate(this.movementFilterEndDate());
@@ -619,24 +829,93 @@ export class MovementsPageComponent {
     };
   }
 
-  private getLastThreeMonthsRange(): { startDate: string; endDate: string } {
-    const today = new Date();
+  private getMovementPresetRange(
+    preset: 'upcoming30Days' | 'upcoming15Days' | 'currentFortnight' | 'currentMonth',
+  ): { start: Date; end: Date } {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    if (preset === 'currentMonth') {
+      return {
+        start: new Date(today.getFullYear(), today.getMonth(), 1),
+        end: new Date(today.getFullYear(), today.getMonth() + 1, 0),
+      };
+    }
+
+    if (preset === 'currentFortnight') {
+      const day = today.getDate();
+
+      if (day >= 15 && day <= 29) {
+        return {
+          start: new Date(today.getFullYear(), today.getMonth(), 15),
+          end: new Date(today.getFullYear(), today.getMonth(), this.clampDayInMonth(today.getFullYear(), today.getMonth(), 29)),
+        };
+      }
+
+      if (day >= 30) {
+        return {
+          start: new Date(today.getFullYear(), today.getMonth(), this.clampDayInMonth(today.getFullYear(), today.getMonth(), 30)),
+          end: new Date(
+            today.getFullYear(),
+            today.getMonth() + 1,
+            this.clampDayInMonth(today.getFullYear(), today.getMonth() + 1, 14),
+          ),
+        };
+      }
+
+      return {
+        start: new Date(
+          today.getFullYear(),
+          today.getMonth() - 1,
+          this.clampDayInMonth(today.getFullYear(), today.getMonth() - 1, 30),
+        ),
+        end: new Date(today.getFullYear(), today.getMonth(), this.clampDayInMonth(today.getFullYear(), today.getMonth(), 14)),
+      };
+    }
+
+    const dayWindow = preset === 'upcoming15Days' ? 15 : 30;
     return {
-      startDate: toIsoDateKey(new Date(today.getFullYear(), today.getMonth() - 2, 1)),
-      endDate: toIsoDateKey(today),
+      start: today,
+      end: new Date(today.getFullYear(), today.getMonth(), today.getDate() + dayWindow),
     };
   }
 
-  private normalizePreset(rawPreset: string): 'currentMonth' | 'last3Months' | 'custom' {
-    if (rawPreset === 'last3Months') {
-      return 'last3Months';
+  private normalizePreset(
+    rawPreset: string,
+  ): 'upcoming30Days' | 'upcoming15Days' | 'currentFortnight' | 'currentMonth' | 'custom' {
+    if (rawPreset === 'upcoming15Days') {
+      return 'upcoming15Days';
+    }
+
+    if (rawPreset === 'currentFortnight') {
+      return 'currentFortnight';
+    }
+
+    if (rawPreset === 'currentMonth') {
+      return 'currentMonth';
     }
 
     if (rawPreset === 'custom') {
       return 'custom';
     }
 
-    return 'currentMonth';
+    return 'upcoming30Days';
+  }
+
+  private normalizeDuePreset(rawPreset: string): 'upcoming30Days' | 'upcoming15Days' | 'currentMonth' | 'currentFortnight' {
+    if (rawPreset === 'upcoming15Days') {
+      return 'upcoming15Days';
+    }
+
+    if (rawPreset === 'currentFortnight') {
+      return 'currentFortnight';
+    }
+
+    if (rawPreset === 'currentMonth') {
+      return 'currentMonth';
+    }
+
+    return 'upcoming30Days';
   }
 
   private escapeCsv(value: string): string {

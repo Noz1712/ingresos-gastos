@@ -6,6 +6,32 @@
   margin-top: 1rem;
 }
 
+.event-panel,
+.event-form,
+.event-form label {
+  min-width: 0;
+}
+
+.event-panel {
+  overflow-x: clip;
+}
+
+.event-form select,
+.event-form input,
+.event-form app-date-input,
+.event-form .primary-button {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.event-form select {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .event-form button {
   margin-top: 0.25rem;
 }
@@ -81,6 +107,11 @@
   grid-template-columns: repeat(3, minmax(9rem, 1fr)) auto;
   gap: 0.6rem;
   align-items: end;
+}
+
+.obligations-toolbar {
+  grid-template-columns: minmax(12rem, 18rem);
+  margin-top: 0.8rem;
 }
 
 .list-toolbar label {

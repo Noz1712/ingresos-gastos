@@ -12,6 +12,7 @@ import {
 import { Observable } from 'rxjs';
 import { FIREBASE_FIRESTORE } from '../firebase.tokens';
 import { Income, IncomeInput } from '../models/income.model';
+import { NotificationService } from './notification.service';
 
 type IncomeDocument = Omit<Income, 'id' | 'createdAt'> & {
   createdAt: unknown;
@@ -22,6 +23,7 @@ type IncomeDocument = Omit<Income, 'id' | 'createdAt'> & {
 })
 export class IncomeService {
   private readonly firestore = inject(FIREBASE_FIRESTORE);
+  private readonly notifications = inject(NotificationService);
 
   incomesForUser(userId: string): Observable<Income[]> {
     return new Observable((subscriber) => {
@@ -53,18 +55,30 @@ export class IncomeService {
   }
 
   async addIncome(userId: string, income: IncomeInput): Promise<void> {
-    const incomesRef = collection(this.firestore, `users/${userId}/incomes`);
-    await addDoc(incomesRef, {
-      ...income,
-      icon: income.icon || '💼',
-      userId,
-      createdAt: serverTimestamp(),
-    });
+    try {
+      const incomesRef = collection(this.firestore, `users/${userId}/incomes`);
+      await addDoc(incomesRef, {
+        ...income,
+        icon: income.icon || '💼',
+        userId,
+        createdAt: serverTimestamp(),
+      });
+      this.notifications.success('Ingreso guardado correctamente.');
+    } catch (error) {
+      this.notifications.error('No se pudo guardar el ingreso.');
+      throw error;
+    }
   }
 
   async deleteIncome(userId: string, incomeId: string): Promise<void> {
-    const incomeRef = doc(this.firestore, `users/${userId}/incomes/${incomeId}`);
-    await deleteDoc(incomeRef);
+    try {
+      const incomeRef = doc(this.firestore, `users/${userId}/incomes/${incomeId}`);
+      await deleteDoc(incomeRef);
+      this.notifications.warning('Ingreso eliminado.');
+    } catch (error) {
+      this.notifications.error('No se pudo eliminar el ingreso.');
+      throw error;
+    }
   }
 
   private asIsoDate(value: unknown): string {

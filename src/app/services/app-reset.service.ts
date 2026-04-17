@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { collection, deleteDoc, doc, getDocs, limit, query, writeBatch } from 'firebase/firestore';
 import { FIREBASE_FIRESTORE } from '../firebase.tokens';
 import { AuthService } from './auth.service';
+import { NotificationService } from './notification.service';
 
 @Injectable({
   providedIn: 'root',
@@ -9,6 +10,7 @@ import { AuthService } from './auth.service';
 export class AppResetService {
   private readonly firestore = inject(FIREBASE_FIRESTORE);
   private readonly authService = inject(AuthService);
+  private readonly notifications = inject(NotificationService);
 
   private readonly resetCollections = [
     'incomes',
@@ -23,15 +25,22 @@ export class AppResetService {
   async resetCurrentUserData(): Promise<void> {
     const user = await this.authService.currentUser();
     if (!user) {
+      this.notifications.warning('Debes iniciar sesion para reiniciar tus datos.');
       throw new Error('No authenticated user found.');
     }
 
-    for (const collectionName of this.resetCollections) {
-      await this.deleteCollectionDocs(`users/${user.uid}/${collectionName}`);
-    }
+    try {
+      for (const collectionName of this.resetCollections) {
+        await this.deleteCollectionDocs(`users/${user.uid}/${collectionName}`);
+      }
 
-    const preferencesRef = doc(this.firestore, `users/${user.uid}/settings/preferences`);
-    await deleteDoc(preferencesRef).catch(() => undefined);
+      const preferencesRef = doc(this.firestore, `users/${user.uid}/settings/preferences`);
+      await deleteDoc(preferencesRef).catch(() => undefined);
+      this.notifications.warning('Tus datos fueron reiniciados correctamente.');
+    } catch (error) {
+      this.notifications.error('No se pudo completar el reinicio de datos.');
+      throw error;
+    }
   }
 
   private async deleteCollectionDocs(collectionPath: string): Promise<void> {

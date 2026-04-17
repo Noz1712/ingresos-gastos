@@ -13,6 +13,7 @@ import {
 import { Observable } from 'rxjs';
 import { FIREBASE_FIRESTORE } from '../firebase.tokens';
 import { CategoryKind, UserCategory, UserCategoryInput } from '../models/category.model';
+import { NotificationService } from './notification.service';
 
 type CategoryDocument = Omit<UserCategory, 'id' | 'createdAt'> & {
   createdAt: unknown;
@@ -23,6 +24,7 @@ type CategoryDocument = Omit<UserCategory, 'id' | 'createdAt'> & {
 })
 export class CategoryService {
   private readonly firestore = inject(FIREBASE_FIRESTORE);
+  private readonly notifications = inject(NotificationService);
 
   categoriesForUser(userId: string, kind: CategoryKind): Observable<UserCategory[]> {
     return new Observable((subscriber) => {
@@ -52,19 +54,31 @@ export class CategoryService {
   }
 
   async addCategory(userId: string, kind: CategoryKind, input: UserCategoryInput): Promise<void> {
-    const categoriesRef = collection(this.firestore, `users/${userId}/${kind}`);
-    await addDoc(categoriesRef, {
-      userId,
-      name: input.name.trim(),
-      color: input.color || '#76b4ff',
-      icon: input.icon || '🏷️',
-      createdAt: serverTimestamp(),
-    });
+    try {
+      const categoriesRef = collection(this.firestore, `users/${userId}/${kind}`);
+      await addDoc(categoriesRef, {
+        userId,
+        name: input.name.trim(),
+        color: input.color || '#76b4ff',
+        icon: input.icon || '🏷️',
+        createdAt: serverTimestamp(),
+      });
+      this.notifications.success('Categoria guardada correctamente.');
+    } catch (error) {
+      this.notifications.error('No se pudo guardar la categoria.');
+      throw error;
+    }
   }
 
   async deleteCategory(userId: string, kind: CategoryKind, categoryId: string): Promise<void> {
-    const categoryRef = doc(this.firestore, `users/${userId}/${kind}/${categoryId}`);
-    await deleteDoc(categoryRef);
+    try {
+      const categoryRef = doc(this.firestore, `users/${userId}/${kind}/${categoryId}`);
+      await deleteDoc(categoryRef);
+      this.notifications.success('Categoria eliminada correctamente.');
+    } catch (error) {
+      this.notifications.error('No se pudo eliminar la categoria.');
+      throw error;
+    }
   }
 
   async updateCategory(
@@ -73,12 +87,18 @@ export class CategoryService {
     categoryId: string,
     input: UserCategoryInput,
   ): Promise<void> {
-    const categoryRef = doc(this.firestore, `users/${userId}/${kind}/${categoryId}`);
-    await updateDoc(categoryRef, {
-      name: input.name.trim(),
-      color: input.color || '#76b4ff',
-      icon: input.icon || '🏷️',
-    });
+    try {
+      const categoryRef = doc(this.firestore, `users/${userId}/${kind}/${categoryId}`);
+      await updateDoc(categoryRef, {
+        name: input.name.trim(),
+        color: input.color || '#76b4ff',
+        icon: input.icon || '🏷️',
+      });
+      this.notifications.success('Categoria actualizada correctamente.');
+    } catch (error) {
+      this.notifications.error('No se pudo actualizar la categoria.');
+      throw error;
+    }
   }
 
   private asIsoDate(value: unknown): string {

@@ -71,12 +71,25 @@
 
     <article class="panel obligations-panel">
       <h2>Gastos e ingresos pendientes</h2>
-      <p class="copy">Solo se muestran los recurrentes registrados para este mes.</p>
+      <p class="copy">Filtra los pendientes recurrentes segun el rango que quieras revisar.</p>
+
+      <div class="list-toolbar obligations-toolbar">
+        <label>
+          <span>Periodo</span>
+          <select [value]="dueDateFilterPreset()" (change)="setDueDateFilterPreset($any($event.target).value)">
+            <option value="upcoming30Days">Próximos 30 días</option>
+            <option value="upcoming15Days">Próximos 15 días</option>
+            <option value="currentFortnight">Quincena actual</option>
+            <option value="currentMonth">Mes actual</option>
+          </select>
+        </label>
+      </div>
 
       @if (dueObligations$ | async; as obligations) {
-        @if (obligations.length) {
+        @if (filteredDueObligations(obligations); as filteredObligations) {
+        @if (filteredObligations.length) {
           <ul class="record-list">
-            @for (obligation of obligations; track obligation.kind + obligation.sourceId + obligation.dueDateKey) {
+            @for (obligation of filteredObligations; track obligation.kind + obligation.sourceId + obligation.dueDateKey) {
               <li class="compact-record-item">
                 <div class="record-main">
                   <span class="record-icon">{{ obligation.icon }}</span>
@@ -108,7 +121,8 @@
             }
           </ul>
         } @else {
-          <p class="empty-state">No hay pendientes recurrentes para este mes.</p>
+          <p class="empty-state">No hay pendientes recurrentes para {{ dueActiveRangeLabel() }}.</p>
+        }
         }
       } @else {
         <p class="empty-state">Cargando pendientes...</p>
@@ -155,8 +169,10 @@
         <label>
           <span>Periodo</span>
           <select [value]="movementDateFilterPreset()" (change)="setMovementDateFilterPreset($any($event.target).value)">
+            <option value="upcoming30Days">Próximos 30 días</option>
+            <option value="upcoming15Days">Próximos 15 días</option>
+            <option value="currentFortnight">Quincena actual</option>
             <option value="currentMonth">Mes actual</option>
-            <option value="last3Months">Ultimos 3 meses</option>
             <option value="custom">Personalizado</option>
           </select>
         </label>

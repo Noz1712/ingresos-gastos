@@ -19,8 +19,10 @@
           <label>
             <span>Periodo</span>
             <select [value]="dateFilterPreset()" (change)="setDateFilterPreset($any($event.target).value)">
+              <option value="upcoming30Days">Próximos 30 días</option>
+              <option value="upcoming15Days">Próximos 15 días</option>
+              <option value="currentFortnight">Quincena actual</option>
               <option value="currentMonth">Mes actual</option>
-              <option value="last3Months">Ultimos 3 meses</option>
               <option value="custom">Personalizado</option>
             </select>
           </label>
@@ -44,6 +46,20 @@
       <div class="budget-grid">
         <article class="panel budget-summary">
           <h2>Resumen del mes</h2>
+
+          <div class="cash-config-box">
+            <label>
+              <span>Efectivo actual</span>
+              <input type="number" min="0" step="0.01" [value]="cashInput()" (input)="setCashInput($any($event.target).value)" />
+            </label>
+            <button type="button" class="primary-button" [disabled]="cashSaving()" (click)="saveCurrentCash()">
+              {{ cashSaving() ? 'Guardando...' : 'Guardar efectivo' }}
+            </button>
+            @if (cashMessage()) {
+              <p class="cash-message">{{ cashMessage() }}</p>
+            }
+          </div>
+
           <div class="budget-kpis">
             <div class="budget-kpi">
               <span>Pagado/registrado (gastos)</span>
@@ -86,6 +102,24 @@
             <strong [class.positive-balance]="budget.registeredBalance > 0" [class.negative-balance]="budget.registeredBalance < 0">
               {{ budget.registeredBalance | money: preferencesService.currencyCode() }}
             </strong>
+          </p>
+
+          <p>
+            Efectivo disponible estimado:
+            @if (budget.currentCashAfterExpenses !== null) {
+              <strong [class.positive-balance]="budget.currentCashAfterExpenses > 0" [class.negative-balance]="budget.currentCashAfterExpenses < 0">
+                {{ budget.currentCashAfterExpenses | money: preferencesService.currencyCode() }}
+              </strong>
+              <span class="muted-inline">
+                (base {{ budget.currentCash | money: preferencesService.currencyCode() }}
+                @if (budget.cashBaselineDate) {
+                  desde {{ budget.cashBaselineDate | date: 'dd/MM/yyyy' }}
+                }
+                - gastos {{ budget.spentSinceBaseline | money: preferencesService.currencyCode() }})
+              </span>
+            } @else {
+              <span class="muted-inline">Configura tu efectivo actual para activar este calculo.</span>
+            }
           </p>
 
           <p>

@@ -1,5 +1,6 @@
 import { AsyncPipe, DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { toObservable } from '@angular/core/rxjs-interop';
 import { combineLatest, EMPTY, map, Observable, switchMap } from 'rxjs';
 import { DateInputComponent } from '../components/date-input.component';
 import { ExpenseCatalogItem } from '../models/expense-catalog.model';
@@ -73,6 +74,10 @@ type BudgetState = {
     incomeAmount: number;
     netAmount: number;
   }>;
+  spentSinceBaseline: number;
+  currentCash: number | null;
+  cashBaselineDate: string | null;
+  currentCashAfterExpenses: number | null;
 };
 
 @Component({
@@ -92,9 +97,21 @@ export class DashboardPageComponent {
   protected readonly preferencesService = inject(UserPreferencesService);
   protected readonly dashboardMode = signal<'expense' | 'income' | 'budget'>('expense');
   protected readonly selectedCategory = signal('');
-  protected readonly dateFilterPreset = signal<'currentMonth' | 'last3Months' | 'custom'>('currentMonth');
+  protected readonly dateFilterPreset = signal<
+    'upcoming30Days' | 'upcoming15Days' | 'currentFortnight' | 'currentMonth' | 'custom'
+  >('currentMonth');
   protected readonly filterStartDate = signal(this.getCurrentMonthRange().startDate);
   protected readonly filterEndDate = signal(this.getCurrentMonthRange().endDate);
+  protected readonly cashInput = signal('');
+  protected readonly cashSaving = signal(false);
+  protected readonly cashMessage = signal('');
+
+  private readonly preferences$ = toObservable(this.preferencesService.preferences);
+  private readonly dashboardDateFilter$ = combineLatest([
+    toObservable(this.dateFilterPreset),
+    toObservable(this.filterStartDate),
+    toObservable(this.filterEndDate),
+  ]);
 
   protected readonly expenseDashboard$ = this.authService.user$.pipe(
     switchMap((user): Observable<DashboardState> => {
@@ -102,8 +119,11 @@ export class DashboardPageComponent {
         return EMPTY;
       }
 
-      return this.expenseService.expensesForUser(user.uid).pipe(
-        map((expenses) =>
+      return combineLatest([
+        this.expenseService.expensesForUser(user.uid),
+        this.dashboardDateFilter$,
+      ]).pipe(
+        map(([expenses]) =>
           this.buildDashboardState(
             expenses.map((expense) => ({
               id: expense.id,
@@ -125,8 +145,11 @@ export class DashboardPageComponent {
         return EMPTY;
       }
 
-      return this.incomeService.incomesForUser(user.uid).pipe(
-        map((incomes) =>
+      return combineLatest([
+        this.incomeService.incomesForUser(user.uid),
+        this.dashboardDateFilter$,
+      ]).pipe(
+        map(([incomes]) =>
           this.buildDashboardState(
             incomes.map((income) => ({
               id: income.id,
@@ -154,9 +177,10 @@ export class DashboardPageComponent {
         this.expenseService.expensesForUser(user.uid),
         this.incomeCatalogService.itemsForUser(user.uid),
         this.incomeService.incomesForUser(user.uid),
+        this.preferences$,
       ]).pipe(
-        map(([pendingExpenses, expenseCatalogItems, expenses, incomeCatalogItems, incomes]) =>
-          this.buildBudgetState(pendingExpenses, expenseCatalogItems, expenses, incomeCatalogItems, incomes),
+        map(([pendingExpenses, expenseCatalogItems, expenses, incomeCatalogItems, incomes, preferences]) =>
+          this.buildBudgetState(pendingExpenses, expenseCatalogItems, expenses, incomeCatalogItems, incomes, preferences),
         ),
       );
     }),
@@ -165,6 +189,11 @@ export class DashboardPageComponent {
   protected setDashboardMode(rawMode: string): void {
     this.dashboardMode.set(rawMode === 'income' || rawMode === 'budget' ? rawMode : 'expense');
     this.selectedCategory.set('');
+
+    if (rawMode === 'budget') {
+      const cash = this.preferencesService.currentCash();
+      this.cashInput.set(cash !== null ? String(cash) : '');
+    }
   }
 
   protected dashboardTitle(): string {
@@ -212,6 +241,30 @@ export class DashboardPageComponent {
     return 'Balance proyectado en cero';
   }
 
+  protected async saveCurrentCash(): Promise<void> {
+    const amount = Number(this.cashInput());
+    if (!Number.isFinite(amount)) {
+      this.cashMessage.set('Ingresa un monto valido para el efectivo actual.');
+      return;
+    }
+
+    this.cashSaving.set(true);
+    this.cashMessage.set('');
+    try {
+      await this.preferencesService.saveCurrentCashSnapshot(amount);
+      this.cashMessage.set('Efectivo actual guardado. Desde ahora cada gasto se resta de este saldo.');
+    } catch {
+      this.cashMessage.set('No se pudo guardar el efectivo actual. Intenta de nuevo.');
+    } finally {
+      this.cashSaving.set(false);
+    }
+  }
+
+  protected setCashInput(rawValue: string): void {
+    this.cashInput.set(rawValue);
+    this.cashMessage.set('');
+  }
+
   protected setSelectedCategory(category: string): void {
     this.selectedCategory.set(category);
   }
@@ -220,18 +273,13 @@ export class DashboardPageComponent {
     const preset = this.normalizePreset(rawPreset);
     this.dateFilterPreset.set(preset);
 
-    if (preset === 'currentMonth') {
-      const range = this.getCurrentMonthRange();
-      this.filterStartDate.set(range.startDate);
-      this.filterEndDate.set(range.endDate);
+    if (preset === 'custom') {
       return;
     }
 
-    if (preset === 'last3Months') {
-      const range = this.getLastThreeMonthsRange();
-      this.filterStartDate.set(range.startDate);
-      this.filterEndDate.set(range.endDate);
-    }
+    const range = this.getDashboardPresetRange(preset);
+    this.filterStartDate.set(toIsoDateKey(range.start));
+    this.filterEndDate.set(toIsoDateKey(range.end));
   }
 
   protected setFilterStartDate(value: string): void {
@@ -246,12 +294,20 @@ export class DashboardPageComponent {
 
   protected activeRangeLabel(): string {
     const preset = this.dateFilterPreset();
-    if (preset === 'currentMonth') {
-      return 'Mes actual';
+    if (preset === 'upcoming30Days') {
+      return 'Próximos 30 días';
     }
 
-    if (preset === 'last3Months') {
-      return 'Ultimos 3 meses';
+    if (preset === 'upcoming15Days') {
+      return 'Próximos 15 días';
+    }
+
+    if (preset === 'currentFortnight') {
+      return 'Quincena actual';
+    }
+
+    if (preset === 'currentMonth') {
+      return 'Mes actual';
     }
 
     return 'Rango personalizado';
@@ -334,6 +390,7 @@ export class DashboardPageComponent {
     expenses: Array<{ description: string; spentAt: string; amount: number; category: string }>,
     incomeCatalogItems: IncomeCatalogItem[],
     incomes: Array<{ description: string; receivedAt: string; amount: number; category: string }>,
+    preferences: { currentCash: number | null; cashBaselineDate: string | null } | null,
   ): BudgetState {
     const now = new Date();
     const year = now.getFullYear();
@@ -513,6 +570,14 @@ export class DashboardPageComponent {
     const expenseCategoryBreakdown = this.buildCategoryBreakdown(uniqueExpenses);
     const incomeCategoryBreakdown = this.buildCategoryBreakdown(uniqueIncomes);
     const upcomingTimeline = this.buildUpcomingTimeline(uniqueExpenses, uniqueIncomes, today);
+    const currentCash = preferences?.currentCash ?? null;
+    const cashBaselineDate = preferences?.cashBaselineDate ?? null;
+    const spentSinceBaseline = cashBaselineDate
+      ? expenses
+          .filter((item) => item.spentAt >= cashBaselineDate)
+          .reduce((sum, item) => sum + Number(item.amount || 0), 0)
+      : 0;
+    const currentCashAfterExpenses = currentCash !== null ? currentCash - spentSinceBaseline : null;
 
     return {
       pendingExpenses: uniqueExpenses,
@@ -532,6 +597,10 @@ export class DashboardPageComponent {
       expenseCategoryBreakdown,
       incomeCategoryBreakdown,
       upcomingTimeline,
+      spentSinceBaseline,
+      currentCash,
+      cashBaselineDate,
+      currentCashAfterExpenses,
     };
   }
 
@@ -576,24 +645,82 @@ export class DashboardPageComponent {
     };
   }
 
-  private getLastThreeMonthsRange(): { startDate: string; endDate: string } {
-    const today = new Date();
+  private getDashboardPresetRange(
+    preset: 'upcoming30Days' | 'upcoming15Days' | 'currentFortnight' | 'currentMonth',
+  ): { start: Date; end: Date } {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    if (preset === 'currentMonth') {
+      return {
+        start: new Date(today.getFullYear(), today.getMonth(), 1),
+        end: new Date(today.getFullYear(), today.getMonth() + 1, 0),
+      };
+    }
+
+    if (preset === 'currentFortnight') {
+      const day = today.getDate();
+
+      if (day >= 15 && day <= 29) {
+        return {
+          start: new Date(today.getFullYear(), today.getMonth(), 15),
+          end: new Date(today.getFullYear(), today.getMonth(), this.clampDayInMonth(today.getFullYear(), today.getMonth(), 29)),
+        };
+      }
+
+      if (day >= 30) {
+        return {
+          start: new Date(today.getFullYear(), today.getMonth(), this.clampDayInMonth(today.getFullYear(), today.getMonth(), 30)),
+          end: new Date(
+            today.getFullYear(),
+            today.getMonth() + 1,
+            this.clampDayInMonth(today.getFullYear(), today.getMonth() + 1, 14),
+          ),
+        };
+      }
+
+      return {
+        start: new Date(
+          today.getFullYear(),
+          today.getMonth() - 1,
+          this.clampDayInMonth(today.getFullYear(), today.getMonth() - 1, 30),
+        ),
+        end: new Date(today.getFullYear(), today.getMonth(), this.clampDayInMonth(today.getFullYear(), today.getMonth(), 14)),
+      };
+    }
+
+    const dayWindow = preset === 'upcoming15Days' ? 15 : 30;
     return {
-      startDate: toIsoDateKey(new Date(today.getFullYear(), today.getMonth() - 2, 1)),
-      endDate: toIsoDateKey(today),
+      start: today,
+      end: new Date(today.getFullYear(), today.getMonth(), today.getDate() + dayWindow),
     };
   }
 
-  private normalizePreset(rawPreset: string): 'currentMonth' | 'last3Months' | 'custom' {
-    if (rawPreset === 'last3Months') {
-      return 'last3Months';
+  private clampDayInMonth(year: number, month: number, requestedDay: number): number {
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    return Math.max(1, Math.min(requestedDay, lastDay));
+  }
+
+  private normalizePreset(
+    rawPreset: string,
+  ): 'upcoming30Days' | 'upcoming15Days' | 'currentFortnight' | 'currentMonth' | 'custom' {
+    if (rawPreset === 'upcoming15Days') {
+      return 'upcoming15Days';
+    }
+
+    if (rawPreset === 'currentFortnight') {
+      return 'currentFortnight';
+    }
+
+    if (rawPreset === 'currentMonth') {
+      return 'currentMonth';
     }
 
     if (rawPreset === 'custom') {
       return 'custom';
     }
 
-    return 'currentMonth';
+    return 'upcoming30Days';
   }
 
   private normalizePendingSchedules(item: PendingExpense): Array<{ day: number; amount: number }> {

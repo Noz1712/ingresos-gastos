@@ -19,6 +19,7 @@ import {
   ExpenseCatalogItem,
   ExpenseCatalogType,
 } from '../models/expense-catalog.model';
+import { NotificationService } from './notification.service';
 
 type ExpenseCatalogDocument = Omit<ExpenseCatalogItem, 'id' | 'createdAt'> & {
   type?: ExpenseCatalogType;
@@ -37,6 +38,7 @@ type ExpenseCatalogDocument = Omit<ExpenseCatalogItem, 'id' | 'createdAt'> & {
 })
 export class ExpenseCatalogService {
   private readonly firestore = inject(FIREBASE_FIRESTORE);
+  private readonly notifications = inject(NotificationService);
 
   itemsForUser(userId: string): Observable<ExpenseCatalogItem[]> {
     return new Observable((subscriber) => {
@@ -79,46 +81,63 @@ export class ExpenseCatalogService {
   }
 
   async addItem(userId: string, input: ExpenseCatalogInput): Promise<string> {
-    const catalogRef = collection(this.firestore, `users/${userId}/expenseCatalog`);
-    const type = input.type;
-    const created = await addDoc(catalogRef, {
-      userId,
-      type,
-      category: input.category.trim(),
-      name: input.name.trim(),
-      color: input.color || '#76b4ff',
-      icon: input.icon || '🧾',
-      initialDebt: type === 'Deuda' ? Number(input.initialDebt || 0) : null,
-      debtPaymentMode: type === 'Deuda' ? input.debtPaymentMode ?? 'PagoUnico' : null,
-      paymentSchedules: this.normalizeSchedules(input.paymentSchedules),
-      endDate: input.endDate ?? null,
-      isIndefinite: input.isIndefinite !== false,
-      createdAt: serverTimestamp(),
-    });
-
-    return created.id;
+    try {
+      const catalogRef = collection(this.firestore, `users/${userId}/expenseCatalog`);
+      const type = input.type;
+      const created = await addDoc(catalogRef, {
+        userId,
+        type,
+        category: input.category.trim(),
+        name: input.name.trim(),
+        color: input.color || '#76b4ff',
+        icon: input.icon || '🧾',
+        initialDebt: type === 'Deuda' ? Number(input.initialDebt || 0) : null,
+        debtPaymentMode: type === 'Deuda' ? input.debtPaymentMode ?? 'PagoUnico' : null,
+        paymentSchedules: this.normalizeSchedules(input.paymentSchedules),
+        endDate: input.endDate ?? null,
+        isIndefinite: input.isIndefinite !== false,
+        createdAt: serverTimestamp(),
+      });
+      this.notifications.success('Gasto de catalogo guardado correctamente.');
+      return created.id;
+    } catch (error) {
+      this.notifications.error('No se pudo guardar el gasto de catalogo.');
+      throw error;
+    }
   }
 
   async updateItem(userId: string, itemId: string, input: ExpenseCatalogInput): Promise<void> {
-    const itemRef = doc(this.firestore, `users/${userId}/expenseCatalog/${itemId}`);
-    const type = input.type;
-    await updateDoc(itemRef, {
-      type,
-      category: input.category.trim(),
-      name: input.name.trim(),
-      color: input.color || '#76b4ff',
-      icon: input.icon || '🧾',
-      initialDebt: type === 'Deuda' ? Number(input.initialDebt || 0) : null,
-      debtPaymentMode: type === 'Deuda' ? input.debtPaymentMode ?? 'PagoUnico' : null,
-      paymentSchedules: this.normalizeSchedules(input.paymentSchedules),
-      endDate: input.endDate ?? null,
-      isIndefinite: input.isIndefinite !== false,
-    });
+    try {
+      const itemRef = doc(this.firestore, `users/${userId}/expenseCatalog/${itemId}`);
+      const type = input.type;
+      await updateDoc(itemRef, {
+        type,
+        category: input.category.trim(),
+        name: input.name.trim(),
+        color: input.color || '#76b4ff',
+        icon: input.icon || '🧾',
+        initialDebt: type === 'Deuda' ? Number(input.initialDebt || 0) : null,
+        debtPaymentMode: type === 'Deuda' ? input.debtPaymentMode ?? 'PagoUnico' : null,
+        paymentSchedules: this.normalizeSchedules(input.paymentSchedules),
+        endDate: input.endDate ?? null,
+        isIndefinite: input.isIndefinite !== false,
+      });
+      this.notifications.success('Gasto de catalogo actualizado correctamente.');
+    } catch (error) {
+      this.notifications.error('No se pudo actualizar el gasto de catalogo.');
+      throw error;
+    }
   }
 
   async deleteItem(userId: string, itemId: string): Promise<void> {
-    const itemRef = doc(this.firestore, `users/${userId}/expenseCatalog/${itemId}`);
-    await deleteDoc(itemRef);
+    try {
+      const itemRef = doc(this.firestore, `users/${userId}/expenseCatalog/${itemId}`);
+      await deleteDoc(itemRef);
+      this.notifications.warning('Gasto de catalogo eliminado.');
+    } catch (error) {
+      this.notifications.error('No se pudo eliminar el gasto de catalogo.');
+      throw error;
+    }
   }
 
   private normalizeSchedules(entries?: CatalogScheduleEntry[]): CatalogScheduleEntry[] {

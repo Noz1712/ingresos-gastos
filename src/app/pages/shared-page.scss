@@ -66,6 +66,10 @@ h2 {
   gap: 1.5rem;
 }
 
+.content-grid > * {
+  min-width: 0;
+}
+
 .panel {
   padding: 1.5rem;
   transition: transform 180ms ease, box-shadow 180ms ease;

@@ -11,6 +11,7 @@ import {
 } from 'firebase/auth';
 import { Observable } from 'rxjs';
 import { FIREBASE_AUTH } from '../firebase.tokens';
+import { NotificationService } from './notification.service';
 
 @Injectable({
   providedIn: 'root',
@@ -18,6 +19,7 @@ import { FIREBASE_AUTH } from '../firebase.tokens';
 export class AuthService {
   private readonly auth = inject(FIREBASE_AUTH);
   private readonly provider = new GoogleAuthProvider();
+  private readonly notifications = inject(NotificationService);
 
   readonly user$: Observable<User | null> = new Observable((subscriber) => {
     const unsubscribe = onAuthStateChanged(
@@ -36,14 +38,33 @@ export class AuthService {
 
   signInWithGoogle(): Promise<void> {
     if (this.shouldUseRedirectFlow()) {
-      return signInWithRedirect(this.auth, this.provider).then(() => undefined);
+      return signInWithRedirect(this.auth, this.provider)
+        .then(() => undefined)
+        .catch((error) => {
+          this.notifications.error('No se pudo iniciar sesion con Google.');
+          throw error;
+        });
     }
 
-    return signInWithPopup(this.auth, this.provider).then(() => undefined);
+    return signInWithPopup(this.auth, this.provider)
+      .then(() => {
+        this.notifications.success('Sesion iniciada correctamente.');
+      })
+      .catch((error) => {
+        this.notifications.error('No se pudo iniciar sesion con Google.');
+        throw error;
+      });
   }
 
   signOut(): Promise<void> {
-    return signOut(this.auth);
+    return signOut(this.auth)
+      .then(() => {
+        this.notifications.warning('Sesion cerrada correctamente.');
+      })
+      .catch((error) => {
+        this.notifications.error('No se pudo cerrar sesion.');
+        throw error;
+      });
   }
 
   currentUser(): Promise<User | null> {
